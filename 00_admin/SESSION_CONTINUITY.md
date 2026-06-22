@@ -4,28 +4,34 @@
 
 ## Last Session
 
-- **Date**: 2026-05-31
+- **Date**: 2026-06-21
 - **Machine**: Mac-mini-2
 - **Agent**: Atlas (Claude Code)
 - **Branch**: main
-- **Receipt**: 20_receipts/2026-05-31_claudit_audit_doc_freshness_and_meta_refresh.md
-- **Commit**: 37608bc
+- **Receipt**: 20_receipts/2026-06-21_claudit_audit_and_fork_guardrails.md
+- **Commit**: 4b23c5d
 
 ## Summary
 
-Ran a claudit config audit (91 → 94/100, Grade A, zero regressions) and applied fixes:
-project `.mcp.json` scoping `notebooklm-mcp`, CLAUDE.md trim (101→97), narrowed
-`claude mcp` permission, and global docker denies. Then a doc freshness pass updated
-CHANGELOG (incl. fastmcp 2.14.2→3.2.4 Security entry), regenerated PROJECT_PRIMER.md, and
-refreshed META.yaml. Verified clean: `make health` → 53 passed.
+Ran a claudit comprehensive config audit (90 → 93, Grade A); project-scoped fixes landed
+on PR #2 (shared `.claude/settings.json`, `.gitignore` negation, `.mcp.json` alwaysLoad/
+timeout, CLAUDE.md tool-count trim). Then installed fork push guardrails after a
+`gh pr create` mistakenly opened a PR on the upstream `jacob-bd` repo (closed; recreated
+correctly as #2): `gh repo set-default` + a global PreToolUse hook `fork_push_guard.py`
+that hard-blocks gh/git writes to a fork's upstream owner.
 
 ## Open Threads
 
-- [ ] Remove deprecated `generate-project-primer` entry from `pyproject.toml` (cleanup when convenient).
+- [ ] Review + merge **PR #2** (jeremybrad/notebooklm-mcp#2) — the claudit audit fixes.
+- [ ] **Restart Claude Code** to activate the `fork_push_guard.py` hook (settings.json is
+      cached at startup; `gh repo set-default` already protects in the meantime).
+- [ ] Deferred: decompose the global `~/.claude/CLAUDE.md` upstream in the C010 builder
+      (Context Efficiency lever; the deployed file is auto-generated — do not hand-edit).
 
 ## Known Hazards
 
-- Reverse-engineered NotebookLM APIs require fragile local auth (~25 calls before cookie rotation on free tier).
-- `PROJECT_PRIMER.md` is a generated artifact — regenerate via `generate-project-primer`, never hand-edit; it embeds the repo SHA so a 1-commit drift after committing is expected (do NOT amend-loop to fix).
-- Repo syncs Mac↔Windows via Syncthing — honor cross-platform filename/symlink rules (no colons in timestamps, no symlinks in tree).
-- `make verify`/`make health` run `uv run pytest` without `PYTHONPATH=src`; both that and the CLAUDE.md-documented `PYTHONPATH=src uv run pytest` work (package is import-discoverable).
+- **This repo is a FORK.** `origin` = jeremybrad/notebooklm-mcp (only write target);
+  `upstream` = jacob-bd/notebooklm-mcp (never push/PR to it). Always pass
+  `--repo jeremybrad/notebooklm-mcp` on `gh` write commands. Guardrails enforce this once
+  the hook is active.
+- Auth is cookie-based and expires; on 401/403 run `notebooklm-mcp-auth` then restart.
