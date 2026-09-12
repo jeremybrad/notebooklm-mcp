@@ -8,6 +8,11 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-186 documentation source manifest: JSON Schema draft 2020-12 for
+  `canonical_docs.yaml`, default privacy/build exclusions with fail-closed
+  path and symlink containment, `extra_docs` consumption, AGENTS.md and
+  PROJECT_PRIMER.md includes, and synthetic three-repo fixtures.
+  Schema id `c021.canonical_docs.v1`. Adds runtime `jsonschema>=4.18`.
 - WOR-184 existing-implementation audit: reuse (not rebuild) the 31-tool MCP
   server and doc-refresh YAML producer; record unavailable host evidence and
   the WOR-186 schema/exclusions gap

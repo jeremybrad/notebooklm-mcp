@@ -1,6 +1,11 @@
 # Canonical Document Manifest for Doc Refresh
-# Version: 0.2.0
-# Last Updated: 2026-01-10
+# schema: c021.canonical_docs.v1
+# Version: 1.0.0
+# Last Updated: 2026-09-12
+
+schema: "c021.canonical_docs.v1"
+version: "1.0.0"
+last_updated: "2026-09-12"
 
 # Tiered approach: Tier 1 required, Tier 2-3 included if they exist
 # Loop auto-detects repo complexity by scanning for existing docs
@@ -11,6 +16,46 @@ tier3_candidates:
   - "docs/{repo_name}/"        # e.g., docs/brain_on_tap/ for C017
   - "docs/deep_reference/"     # Alternative naming
   - "docs/"                    # Flat structure fallback
+
+# Privacy / build exclusions. These always win over tier includes and extra_docs.
+# Discovery never follows paths that escape the repo root or symlink outside it.
+exclusions:
+  - pattern: ".env"
+    reason: "environment files"
+  - pattern: ".env.*"
+    reason: "environment files"
+  - pattern: ".env*"
+    reason: "environment files"
+  - pattern: "**/.env"
+    reason: "environment files"
+  - pattern: "**/.env.*"
+    reason: "environment files"
+  - pattern: "**/secrets/**"
+    reason: "credential material"
+  - pattern: "**/*credential*"
+    reason: "credential material"
+  - pattern: "**/*secret*"
+    reason: "credential material"
+  - pattern: "**/*.pem"
+    reason: "private keys"
+  - pattern: "**/*.key"
+    reason: "private keys"
+  - pattern: "**/*.log"
+    reason: "raw logs"
+  - pattern: "**/private/**"
+    reason: "private transcripts and notes"
+  - pattern: "**/*transcript*"
+    reason: "private transcripts"
+  - pattern: "**/node_modules/**"
+    reason: "generated dependency tree"
+  - pattern: "**/.venv/**"
+    reason: "virtualenv"
+  - pattern: "**/dist/**"
+    reason: "build output"
+  - pattern: "**/build/**"
+    reason: "build output"
+  - pattern: "**/.git/**"
+    reason: "vcs internals"
 
 tiers:
   tier1:
@@ -55,6 +100,20 @@ tiers:
           - accurate_claims
           - code_refs_valid
 
+      - path: "AGENTS.md"
+        purpose: "Agent instruction routing"
+        must_exist: false
+        stub_allowed: true
+        validation:
+          - has_metadata_header
+
+      - path: "PROJECT_PRIMER.md"
+        purpose: "Repo primer for operators and NotebookLM"
+        must_exist: false
+        stub_allowed: true
+        validation:
+          - has_metadata_header
+
       - path: "glossary.yaml"
         purpose: "Domain terms and concepts"
         must_exist: false
@@ -63,7 +122,7 @@ tiers:
           - valid_yaml
 
       - path: "10_docs/"
-        purpose: "Working agreements folder (Betty Protocol)"
+        purpose: "Working agreements folder (Betty Protocol); includes PRDs and governance docs"
         must_exist: false
         is_directory: true
         scan_pattern: "10_docs/**/*.md"
@@ -225,16 +284,11 @@ change_detection:
 repo_overrides:
   C017_brain-on-tap:
     tier3_root: "docs/brain_on_tap"
-    # C017 uses SECURITY_AND_PRIVACY.md instead of SECURITY.md (handled via alternate_names)
-    # Has additional docs like TABS.md, ILLUSTRATION_BRIEF.md that are repo-specific
+    extra_docs:
+      - path: "docs/TABS.md"
+        purpose: "C017 tab inventory"
+      - path: "docs/ILLUSTRATION_BRIEF.md"
+        purpose: "C017 illustration brief"
 
   C021_notebooklm-mcp:
     tier3_root: "docs/notebooklm_mcp"
-    # Tier 3 docs live in docs/notebooklm_mcp/
-
-  # Template for adding new repos:
-  # RepoName:
-  #   tier3_root: "docs/subfolder"  # Or "docs" for flat structure
-  #   extra_docs:                    # Optional repo-specific docs to include
-  #     - path: "docs/SPECIAL.md"
-  #       purpose: "Repo-specific doc"

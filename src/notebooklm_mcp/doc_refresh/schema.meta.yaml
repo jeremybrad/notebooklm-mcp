@@ -1,0 +1,9 @@
+purpose: JSON Schema validation for canonical_docs.yaml
+status: active
+dependencies:
+  - json
+  - jsonschema
+  - pathlib
+created: "2026-09-12"
+last_reviewed: "2026-09-12"
+author: Jeremy Bradford

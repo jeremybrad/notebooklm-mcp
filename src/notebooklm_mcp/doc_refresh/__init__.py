@@ -13,7 +13,7 @@ This module provides:
 Invoked via: /doc-refresh [--target PATH] [--force] [--artifacts LIST] [--skip-artifacts]
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Public API
 from .discover import discover_repo, get_docs_needing_hash, get_existing_docs
@@ -26,13 +26,17 @@ from .hashing import (
     should_regenerate_artifacts,
 )
 from .manifest import (
+    ManifestError,
     load_manifest,
     load_notebook_map,
     save_notebook_map,
     resolve_tier3_root,
     get_stored_hashes,
     get_tier_docs,
+    manifest_content_hash,
+    validate_canonical_docs,
 )
+from .selection import get_exclusions, get_extra_docs, is_excluded, path_is_contained
 from .models import (
     DiscoveryResult,
     DocItem,
@@ -97,6 +101,13 @@ __all__ = [
     "resolve_tier3_root",
     "get_stored_hashes",
     "get_tier_docs",
+    "ManifestError",
+    "manifest_content_hash",
+    "validate_canonical_docs",
+    "get_exclusions",
+    "get_extra_docs",
+    "is_excluded",
+    "path_is_contained",
     # Models
     "DiscoveryResult",
     "DocItem",

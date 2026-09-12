@@ -1,7 +1,7 @@
 # Doc Refresh Interfaces
 
-**Version:** 0.2.0
-**Last Updated:** 2026-01-10
+**Version:** 1.0.0
+**Last Updated:** 2026-09-12
 
 ## CLI Interface
 
@@ -52,14 +52,32 @@
 
 ### canonical_docs.yaml
 
+Validated against `src/notebooklm_mcp/doc_refresh/canonical_docs.schema.json`
+(JSON Schema draft 2020-12, schema id `c021.canonical_docs.v1`).
+`load_manifest()` fails closed on malformed files.
+
+Include/exclude precedence:
+
+1. Candidate set = tier documents + `repo_overrides.<repo>.extra_docs`.
+2. Drop any candidate that is not contained in the repo root (absolute path,
+   parent escape, UNC/tilde, or symlink whose target leaves the repo).
+3. Drop any candidate matching an exclusion glob (global list, then per-repo
+   extra exclusions). Exclusions always win over includes/`extra_docs`.
+4. Directory entries with `scan_pattern` expand to matching files, then the
+   same containment and exclusion rules apply to each file.
+
 ```yaml
-# Version header
-# Version: 0.2.0
-# Last Updated: YYYY-MM-DD
+schema: "c021.canonical_docs.v1"
+version: "1.0.0"
+last_updated: "YYYY-MM-DD"
 
 tier3_candidates:          # Paths to check for Tier 3 docs
   - "docs/{repo_name}/"    # Template with repo name
   - "docs/"                # Fallback
+
+exclusions:
+  - pattern: ".env*"       # Glob; also matches basename at any depth
+    reason: "environment files"
 
 tiers:
   tier1:                   # Required tier
@@ -75,6 +93,7 @@ tiers:
 
   tier2:                   # Extended tier
     # Same structure, required: false
+    # Includes CLAUDE.md, AGENTS.md, PROJECT_PRIMER.md, glossary, 10_docs/, 20_receipts/
 
   tier3:                   # Kitted tier
     path_prefix: "{tier3_root}"  # Resolved from candidates
@@ -102,8 +121,21 @@ change_detection:
 repo_overrides:
   RepoName:
     tier3_root: string     # Override path resolution
-    extra_docs: []         # Additional docs to include
+    extra_docs: []         # Additional docs to include (still subject to exclusions)
+    exclusions: []         # Extra privacy globs for this repo
 ```
+
+Discovered `DocItem` freshness metadata (same 12-char SHA-256 prefix as
+notebook-map hashes; no second hash scheme):
+
+| Field | Source |
+|-------|--------|
+| `path` | Repo-relative path |
+| `content_hash` | SHA-256 prefix of file bytes |
+| `source_title` | `DOC: {repo} :: {path}` |
+| `last_commit` | `git log -1` SHA when `.git` exists; otherwise null |
+| `generated_bundle_id` | Reserved for the bundle generator; null here |
+
 
 ### notebook_map.yaml
 
@@ -148,8 +180,10 @@ config:
 | Document | Purpose |
 |----------|---------|
 | `CLAUDE.md` | Claude Code guidance |
+| `AGENTS.md` | Agent instruction routing |
+| `PROJECT_PRIMER.md` | Repo primer |
 | `glossary.yaml` | Domain terms |
-| `10_docs/` | Working agreements |
+| `10_docs/` | Working agreements / PRDs / governance |
 | `20_receipts/` | Change receipts |
 
 ### Tier 3: Kitted (NotebookLM-ready)
