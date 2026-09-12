@@ -33,6 +33,9 @@ class DocItem:
     content_hash: Optional[str] = None  # SHA-256 prefix (12 chars)
     stored_hash: Optional[str] = None   # Hash from notebook_map.yaml
     is_changed: Optional[bool] = None   # True if hash differs from stored
+    source_title: Optional[str] = None  # Deterministic NotebookLM source title
+    last_commit: Optional[str] = None   # git SHA of last commit touching path
+    generated_bundle_id: Optional[str] = None  # Filled by the bundle generator
 
 
 @dataclass
@@ -43,6 +46,9 @@ class DiscoveryResult:
     tier: Tier
     tier3_root: Optional[Path]          # Resolved Tier 3 path (if kitted)
     docs: list[DocItem] = field(default_factory=list)
+    manifest_content_hash: Optional[str] = None  # 12-char hash of manifest bytes
+    manifest_version: Optional[str] = None
+    manifest_last_updated: Optional[str] = None
 
     @property
     def tier1_docs(self) -> list[DocItem]:

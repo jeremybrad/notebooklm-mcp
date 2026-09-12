@@ -8,6 +8,11 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-186 documentation source manifest: JSON Schema draft 2020-12 for
+  `canonical_docs.yaml`, default privacy/build exclusions with fail-closed
+  path and symlink containment, `extra_docs` consumption, AGENTS.md and
+  PROJECT_PRIMER.md includes, and synthetic three-repo fixtures.
+  Schema id `c021.canonical_docs.v1`. Adds runtime `jsonschema>=4.18`.
 - WOR-185 capability matrix for NotebookLM / Gemini notebooks / Drive / MCP
   refresh paths (`docs/audits/2026-09-12_wor185_capability_matrix.md` plus
   `docs/audits/wor185_capability_matrix.json`). Preferred path is the
