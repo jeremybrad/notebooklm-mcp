@@ -50,3 +50,15 @@ testable exclusions + metadata + synthetic fixtures on the existing
 
 NOT LAUNCHED (`grok-subscription` / `codex-subscription` not on PATH).
 PR stays draft. Jeremy remains sole merger.
+
+## Assigned executor verification (Betty, 2026-09-12)
+
+Read-only Mac verification of audit head `a59714f3ff523fba82b324a72629dc9647c55560`:
+- Isolated checkout was clean and detached at that exact head; `HEAD..origin/main` empty, `origin/main..HEAD` contains the single audit commit. Base `de8169fe84d679d54621556a6fafcb1a1548e0d1` remains current.
+- `origin` fetch/push: `https://github.com/jeremybrad/notebooklm-mcp.git`; upstream fetch: `https://github.com/jacob-bd/notebooklm-mcp.git`; upstream push disabled (`no_push_allowed`).
+- Canonical checkout is on main with an existing modified `PROJECT_PRIMER.md`; it was preserved. All audit repairs use the isolated checkout.
+- Makefile exists: `verify` runs `uv run pytest --maxfail=1 --disable-warnings -q`; `health` delegates to verify. Schedule install/uninstall are separate targets and were not executed.
+- Repository `.mcp.json` declares one server, `notebooklm-mcp`, command `notebooklm-mcp`, no arguments or environment entries. This is configuration source, not proof the command is installed, enabled in a client, authenticated, or operational.
+- Offline tests rerun on this checkout: `PYTHONPATH=src .../.venv/bin/python -m pytest -o addopts='' tests -q` → 53 passed in 3.31s. No NotebookLM request, upload, Chrome/auth operation, or scheduler activation.
+
+Independent review round 1 found missing clone/Makefile/config observations; the above supplies them. The original hosted observations remain historical. Technical reuse is accepted within Jeremy's assigned outcome; no new product decision is needed to prepare WOR-186 on the existing manifest surface. Re-review and technical readiness remain executor work, with Jeremy retaining merge authority.

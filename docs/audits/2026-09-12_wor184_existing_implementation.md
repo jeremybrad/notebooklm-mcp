@@ -172,3 +172,9 @@ Reuse `src/notebooklm_mcp/doc_refresh/canonical_docs.yaml` + `manifest.py` +
 - `docs/receipts/2026-01-03_mcp_verification_attempt.md`
 - `10_docs/prds/PRD-NR01_nightly_notebook_refresh.md`
 - C010 `registry/repos.yaml` entry `C021_notebooklm-mcp`
+
+## Follow-up clone and configuration verification
+
+Betty verified the exact audit head against current main in a clean isolated Mac checkout. The canonical checkout's existing `PROJECT_PRIMER.md` modification remains untouched. Origin is Jeremy's `notebooklm-mcp` repository; the upstream remote cannot push. The receipt records the exact revisions and comparisons.
+
+`Makefile` provides offline `verify`/`health` and separately named schedule targets. `.mcp.json` declares the `notebooklm-mcp` command with no arguments or environment entries. Neither file establishes installed-client discovery, authentication, or operational NotebookLM access. Local offline tests pass (53); host runtime and authentication remain untested. No live activation is required to accept this technical inventory and proceed with the bounded WOR-186 manifest work.
