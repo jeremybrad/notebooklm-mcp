@@ -126,15 +126,17 @@ def path_is_contained(repo_path: Path, relpath: str) -> bool:
     try:
         resolved = candidate.resolve(strict=False)
         resolved.relative_to(repo)
-    except (OSError, ValueError):
+    except (OSError, ValueError, RuntimeError):
         return False
 
     probe = candidate
     try:
-        if probe.is_symlink():
-            target = probe.resolve(strict=False)
-            target.relative_to(repo)
-    except (OSError, ValueError):
+        # Reject every symlink component: aliases can hide excluded target paths.
+        while probe != repo:
+            if probe.is_symlink():
+                return False
+            probe = probe.parent
+    except (OSError, ValueError, RuntimeError):
         return False
 
     return True

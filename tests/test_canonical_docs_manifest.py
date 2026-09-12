@@ -199,6 +199,7 @@ class TestSyntheticRepos:
         assert simple_result.manifest_version == "1.0.0"
         assert simple_result.manifest_content_hash
         assert len(simple_result.manifest_content_hash) == 12
+        assert kitted_result.manifest_content_hash is None
 
     def test_privacy_exclusions_omit_matches_keep_authorized(self, tmp_path: Path):
         repo = build_complex_repo(tmp_path)
@@ -268,3 +269,26 @@ class TestSyntheticRepos:
         assert readme.exists is False
         assert readme.required is True
         assert result.missing_required
+
+
+def test_internal_symlink_cannot_read_excluded_content(tmp_path):
+    repo = build_complex_repo(tmp_path)
+    (repo / "README.md").unlink()
+    (repo / "README.md").symlink_to(repo / "private" / "transcript.md")
+    result = discover_repo(repo, notebook_map=EMPTY_MAP)
+    assert not any(d.path == Path("README.md") for d in result.docs)
+
+
+@pytest.mark.parametrize("inside", [True, False])
+def test_tier3_absolute_doc_is_omitted(tmp_path, inside):
+    from notebooklm_mcp.doc_refresh.discover import _discover_one_def
+    repo = build_kitted_repo(tmp_path)
+    target = repo / "README.md" if inside else tmp_path / "outside.md"
+    assert _discover_one_def(repo, repo.name, {"path": str(target)}, 3, {}, [], {}, base=repo / "docs/kitted_docs") == []
+
+
+def test_in_memory_manifest_has_no_false_byte_provenance(tmp_path):
+    repo = build_simple_repo(tmp_path)
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {"extra_docs": [{"path": "EXTRA.md"}]}
+    assert discover_repo(repo, manifest, EMPTY_MAP).manifest_content_hash is None

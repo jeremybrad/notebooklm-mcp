@@ -55,8 +55,12 @@ def discover_repo(
         DiscoveryResult with tier classification and discovered docs
     """
     loaded_from = manifest_path or DEFAULT_MANIFEST_PATH
+    byte_provenance = manifest is None
     if manifest is None:
         manifest = load_manifest(loaded_from)
+    elif manifest_path is not None:
+        # Only attach file-byte provenance when it describes this exact selection.
+        byte_provenance = load_manifest(manifest_path) == manifest
     if notebook_map is None:
         notebook_map = load_notebook_map()
 
@@ -100,7 +104,7 @@ def discover_repo(
     all_docs = _dedupe_docs(tier1_docs + tier2_docs + tier3_docs + extra_docs)
 
     try:
-        manifest_hash = manifest_content_hash(loaded_from)
+        manifest_hash = manifest_content_hash(loaded_from) if byte_provenance else None
     except OSError:
         manifest_hash = None
 
@@ -250,6 +254,8 @@ def _discover_one_def(
     found_exists = False
 
     for name in names:
+        if not path_is_contained(root, name):
+            continue
         if base is not None:
             rel = (base / name).relative_to(repo_path).as_posix()
             full = root / name
