@@ -8,6 +8,10 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-184 existing-implementation audit: reuse (not rebuild) the 31-tool MCP
+  server and doc-refresh YAML producer; record unavailable host evidence and
+  the WOR-186 schema/exclusions gap
+  (`docs/audits/2026-09-12_wor184_existing_implementation.md`).
 - Nightly/manual CI runs now upload `pytest.xml` and `coverage.xml` artifacts for failure review.
 - Helper regression tests now cover auth/sync/server parsing plus receipt and refresh-log helpers.
 - Nightly documentation refresh automation (PRD-NR01) with launchd scheduling helpers in
