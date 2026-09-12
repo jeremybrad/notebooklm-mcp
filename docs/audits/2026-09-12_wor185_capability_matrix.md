@@ -26,7 +26,7 @@ delete the old one**. That ordering is already unit-tested offline.
 | Primary | Existing C021 MCP + doc-refresh | Only consumer path with a source-complete create/list/add/delete write surface |
 | Freshness complement | Drive-linked sources | Native `check_source_freshness` / `source_sync_drive` for Docs/Slides/Gemini Notes that already live in Drive |
 | Fallback | Browser UI playbook | After two failed MCP auth refreshes; never the nightly runner |
-| Reject | Official consumer API | Does not exist as of 2026-09-03 public docs |
+| Reject | Official consumer API | No public consumer write API identified in the reviewed first-party docs (2026-09-12) |
 | Reject | Gemini Notebook Enterprise API | Official, but a different SKU (GCP project + Enterprise license). Not Jeremy's Gemini Ultra consumer notebooks |
 | Reject | Gemini Notebooks UI sync | Bidirectional consumer sync is real; it is not a programmatic write API |
 
@@ -68,7 +68,7 @@ Legend: **supported** = first-party or existing C021 source implements it;
 
 ### 1. Direct NotebookLM automation / official API
 
-Consumer NotebookLM still has **no public write API**. Google Cloud's
+No public consumer NotebookLM write API was identified in the first-party documentation reviewed on 2026-09-12; this is a bounded research result, not proof that no private interface exists. Google Cloud's
 documented REST surface (updated 2026-09-03) is **Gemini Notebook
 Enterprise** on Discovery Engine:
 
@@ -156,8 +156,8 @@ could not close:
 ## WOR-188 implementation packet (proposed, not started)
 
 - Implement against **existing MCP + `apply_sync_plan`**.
-- Keep v0 refresh **in-place** with add-before-delete and dry-run receipts.
-- If WOR-188 takes create-new-then-retire, gate old-notebook delete on:
+- Preserve the observed in-place implementation as evidence only. WOR-188 owns the create-new-then-retire adapter and must satisfy its retirement gates; this audit does not downgrade that acceptance.
+- For WOR-188 create-new-then-retire, gate old-notebook delete on:
   new notebook exists, source count matches bundle, content hashes match,
   and a read-only `notebook_query` returns a citation. Never delete first.
 - Drive sync is optional and only for Drive-native sources.
@@ -179,3 +179,9 @@ could not close:
 WOR-186 may continue on its own draft. WOR-188 stays blocked until this
 issue is **Done** (merged + accepted) **and** WOR-187 is Done. In Review on
 this draft is not Done.
+
+## Public-source refresh on the finishing Mac (2026-09-12)
+
+[Google Cloud notebook API documentation](https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks) identifies an Enterprise preview with license/project prerequisites and create/get/recent-list/delete operations. A recent-list endpoint is not an exhaustive inventory guarantee. [Consumer source guidance](https://support.google.com/gemininotebook/answer/16215270) now describes automatic updates for Drive imports, with manual sync available; the existing MCP freshness helpers remain source-level observations, not a live service canary. [Gemini notebook help](https://support.google.com/notebooklm/answer/17003757) search results describe cross-app syncing; opening that page was blocked by Google's browser challenge, so the full page was not revalidated here.
+
+These public reads do not establish authenticated write health. No cookie files, private sources, or Google mutation endpoints were accessed. Authentication, runtime setup and scheduling are activation prerequisites; they do not prevent offline WOR-187 bundle generation or synthetic WOR-188 adapter development. Live upload/retirement and query acceptance still need their named operator authorization and working account access. Cookie lifetime is historical documentation, not a guaranteed rotation interval.

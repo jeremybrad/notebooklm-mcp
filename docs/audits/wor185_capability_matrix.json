@@ -29,9 +29,8 @@
       "product": "personal Gemini Notebook (notebooklm.google.com)",
       "auth": "none documented; personal Google Account in the UI",
       "evidence": [
-        "Google Cloud docs 2026-09-03 describe Gemini Notebook Enterprise APIs only",
-        "docs/AUTHENTICATION.md and OPEN_QUESTIONS.md: no official consumer API",
-        "aipedia.wiki NotebookLM review (2026-06): API access None"
+        "https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks",
+        "https://support.google.com/gemininotebook/answer/16215270"
       ],
       "operations": {
         "create_notebook": "unsupported",
@@ -41,7 +40,7 @@
         "list_notebooks": "unsupported",
         "validate_source_freshness": "unsupported"
       },
-      "notes": "No public first-party write API for the consumer product Jeremy uses (Gemini Ultra / notebooklm.google.com)."
+      "notes": "No public consumer write API identified in reviewed first-party docs on 2026-09-12; bounded research, not proof of private interface absence."
     },
     {
       "id": "official_enterprise_api",
@@ -110,7 +109,7 @@
         "list_notebooks": "unsupported",
         "validate_source_freshness": "partial"
       },
-      "notes": "Best native freshness for Drive-linked Docs/Slides/Gemini Notes. Does not create/list/delete notebooks by itself. Markdown from git is not Drive-native; a git-to-Drive uploader would be extra, unbuilt work. Pasted text and URL sources cannot be freshness-synced."
+      "notes": "Best native freshness for Drive-linked Docs/Slides/Gemini Notes. Does not create/list/delete notebooks by itself. Markdown from git is not Drive-native; a git-to-Drive uploader would be extra, unbuilt work. Pasted text and URL sources cannot be freshness-synced. Current consumer help describes automatic Drive source updates; no live MCP freshness canary performed."
     },
     {
       "id": "existing_mcp_text_sources",
@@ -125,8 +124,15 @@
       ],
       "mcp_tools": {
         "create_notebook": "notebook_create",
-        "add_source": ["notebook_add_text", "notebook_add_url", "notebook_add_drive"],
-        "replace_source": ["notebook_add_text then source_delete", "source_sync_drive for Drive"],
+        "add_source": [
+          "notebook_add_text",
+          "notebook_add_url",
+          "notebook_add_drive"
+        ],
+        "replace_source": [
+          "notebook_add_text then source_delete",
+          "source_sync_drive for Drive"
+        ],
         "delete_notebook": "notebook_delete",
         "list_notebooks": "notebook_list",
         "validate_source_freshness": "source_list_drive + check_source_freshness"
@@ -233,7 +239,7 @@
     ],
     "do_not_rebuild": true,
     "do_not_switch_to_enterprise_without_jeremy": true,
-    "lifecycle": "Keep in-place add-before-delete as the v0 refresh. Treat create-new-then-retire as an explicit WOR-188 choice with dry-run receipts; do not delete the old notebook until source count, bundle hash, and a read-only query succeed.",
+    "lifecycle": "Existing ensure_notebook is in-place evidence only. Implement WOR-188 create-new-then-retire with dry-run receipts; retirement requires source count, bundle hash/ID and query readiness validation. This audit does not change acceptance.",
     "drive_optional": "Use Drive-linked sources only for documents that already live in Drive. Do not invent a git-to-Drive publisher inside WOR-188.",
     "stop_lines": [
       "No live NotebookLM mutations from this research packet",
@@ -241,5 +247,7 @@
       "No scheduler installation",
       "No cookie writes"
     ]
-  }
+  },
+  "public_sources_verified_at": "2026-09-12",
+  "public_google_docs_read": true
 }
