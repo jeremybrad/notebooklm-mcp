@@ -33,7 +33,11 @@ def glob_match(relpath: str, pattern: str) -> bool:
     slash also match the basename at any depth (so ``.env*`` hits
     ``config/.env.local``).
     """
+    # Match the same lexical identity that DocItem stores and downstream reads.
+    # Path removes trailing separators; matching the raw spelling leaks exclusions.
     rel = normalize_relpath(relpath)
+    if rel:
+        rel = Path(rel).as_posix()
     pat = pattern.replace("\\", "/").strip()
     if not rel or not pat:
         return False

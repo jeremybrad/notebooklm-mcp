@@ -294,7 +294,7 @@ def test_in_memory_manifest_has_no_false_byte_provenance(tmp_path):
     assert discover_repo(repo, manifest, EMPTY_MAP).manifest_content_hash is None
 
 
-@pytest.mark.parametrize("alias", ["docs/./restricted.md", "docs/sub/../restricted.md", "docs//restricted.md"])
+@pytest.mark.parametrize("alias", ["docs/./restricted.md", "docs/sub/../restricted.md", "docs//restricted.md", "docs/restricted.md/", "docs/restricted.md//", "./docs/restricted.md/", "docs\\restricted.md\\"])
 def test_dot_segment_alias_cannot_bypass_exclusions(tmp_path, alias):
     repo = build_simple_repo(tmp_path)
     _write(repo / "docs/restricted.md", "synthetic excluded")
@@ -308,3 +308,17 @@ def test_absolute_scan_pattern_is_omitted(tmp_path):
     from notebooklm_mcp.doc_refresh.discover import _expand_scan
     repo = build_simple_repo(tmp_path)
     assert _expand_scan(repo, repo.name, {"scan_pattern": "/tmp/*.md"}, 2, {}, [], {}) == []
+
+
+def test_exclusions_use_selected_path_identity_and_preserve_directory_discovery(tmp_path):
+    from notebooklm_mcp.doc_refresh.selection import glob_match
+
+    repo = build_complex_repo(tmp_path)
+    _write(repo / "10_docs/allowed.md", "synthetic allowed")
+    result = discover_repo(repo, notebook_map=EMPTY_MAP)
+    assert any(d.path == Path("10_docs") for d in result.docs)
+    assert any(d.path == Path("10_docs/allowed.md") for d in result.docs)
+    for alias in ("docs/restricted.md", "docs/restricted.md/", "docs/restricted.md//"):
+        assert is_excluded(alias, ["docs/restricted.md"])
+        assert Path(alias) == Path("docs/restricted.md")
+    assert not glob_match("", "*")
