@@ -195,12 +195,12 @@ def _expand_scan(
     commit_cache: dict[str, Optional[str]],
 ) -> list[DocItem]:
     pattern = doc_def.get("scan_pattern")
-    if not pattern:
+    if not pattern or not path_is_contained(repo_path, pattern):
         return []
     docs: list[DocItem] = []
     try:
         matches = sorted(repo_path.glob(pattern))
-    except OSError:
+    except (OSError, ValueError, NotImplementedError):
         return []
     for match in matches:
         try:

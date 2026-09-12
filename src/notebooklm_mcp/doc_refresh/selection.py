@@ -120,7 +120,9 @@ def path_is_contained(repo_path: Path, relpath: str) -> bool:
     if len(text) >= 2 and text[1] == ":":
         return False
 
-    parts = [part for part in text.split("/") if part not in {"", "."}]
+    if any(part in {".", ".."} for part in text.split("/")):
+        return False
+    parts = [part for part in text.split("/") if part]
     candidate = repo.joinpath(*parts) if parts else repo
 
     try:
