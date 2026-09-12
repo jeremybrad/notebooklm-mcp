@@ -8,6 +8,11 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-185 capability matrix for NotebookLM / Gemini notebooks / Drive / MCP
+  refresh paths (`docs/audits/2026-09-12_wor185_capability_matrix.md` plus
+  `docs/audits/wor185_capability_matrix.json`). Preferred path is the
+  existing consumer MCP write surface; Enterprise REST and Gemini UI sync
+  are documented and rejected as the C021 default. No live Google calls.
 - WOR-184 existing-implementation audit: reuse (not rebuild) the 31-tool MCP
   server and doc-refresh YAML producer; record unavailable host evidence and
   the WOR-186 schema/exclusions gap
