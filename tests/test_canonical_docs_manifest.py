@@ -436,3 +436,16 @@ def test_literal_glob_character_filename_still_checks_identity(tmp_path):
         "extra_docs": [{"path": "docs/RESTRICTED?.md"}],
     }
     assert not any(d.path == Path("docs/RESTRICTED?.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
+
+
+def test_exclusion_identity_does_not_walk_symlink_target(tmp_path, monkeypatch):
+    repo = build_simple_repo(tmp_path)
+    outside = tmp_path / "outside"
+    _write(outside / "private.md", "synthetic outside")
+    (repo / "alias").symlink_to(outside, target_is_directory=True)
+    original = Path.iterdir
+    def bounded(path):
+        assert path != repo / "alias", "must not enumerate symlink target"
+        return original(path)
+    monkeypatch.setattr(Path, "iterdir", bounded)
+    assert is_excluded("README.md", ["alias/private.md"], repo)

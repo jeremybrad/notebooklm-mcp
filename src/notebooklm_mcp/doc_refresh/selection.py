@@ -84,6 +84,8 @@ def _entry_spelling(repo_path: Path, relpath: str) -> str:
     current = repo_path
     actual: list[str] = []
     for index, part in enumerate(parts):
+        if current.is_symlink():
+            raise ValueError("symlink identity is not a selection boundary")
         requested = current / part
         if any(char in part for char in "*?[") and not requested.exists():
             return "/".join(actual + list(parts[index:]))
