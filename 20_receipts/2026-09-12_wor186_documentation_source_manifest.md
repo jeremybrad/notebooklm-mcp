@@ -37,3 +37,5 @@ Offline pytest against `tests/` including `tests/test_canonical_docs_manifest.py
 Independent guarded Codex round 1 proposed F1 internal symlink privacy bypass, F2 tier-3 absolute path acceptance/crash, F3 in-memory manifest false byte provenance. Each reproduced with synthetic fixtures before repair. Discovery now rejects symlink components, checks original tier-3 names before joining, and only assigns manifest file hash when file content matches selection. 72 offline tests pass on Mac. Full-context independent re-review follows at pushed head. No uploads or runtime changes.
 
 Round2 F4/F5 confirmed and repaired: dot-segment aliases bypassed exact exclusions; absolute scan patterns crashed discovery. Three synthetic regressions red before repair;75 offline tests pass after rejecting ambiguous relative spellings and unsupported scan patterns.
+
+Round3 reopened F4 once for repeated separators (docs//restricted.md). Reproduced before repair; empty interior components now refused.76 offline tests pass. Prior F1-F3/F5 remain resolved.

@@ -294,7 +294,7 @@ def test_in_memory_manifest_has_no_false_byte_provenance(tmp_path):
     assert discover_repo(repo, manifest, EMPTY_MAP).manifest_content_hash is None
 
 
-@pytest.mark.parametrize("alias", ["docs/./restricted.md", "docs/sub/../restricted.md"])
+@pytest.mark.parametrize("alias", ["docs/./restricted.md", "docs/sub/../restricted.md", "docs//restricted.md"])
 def test_dot_segment_alias_cannot_bypass_exclusions(tmp_path, alias):
     repo = build_simple_repo(tmp_path)
     _write(repo / "docs/restricted.md", "synthetic excluded")
