@@ -1,0 +1,259 @@
+{
+  "issue": "WOR-185",
+  "title": "C021 NotebookLM / Gemini notebooks / Drive / MCP capability matrix",
+  "verified_at": "2026-09-12T15:40:00Z",
+  "audited_head": "3681e88a5ad0bd633f7497cce4ee9c623f4479cd",
+  "live_google_calls": false,
+  "live_notebooklm_calls": false,
+  "auth_installed": false,
+  "required_operations": [
+    "create_notebook",
+    "add_source",
+    "replace_source",
+    "delete_notebook",
+    "list_notebooks",
+    "validate_source_freshness"
+  ],
+  "preferred_path_id": "existing_mcp_text_sources",
+  "fallback_path_id": "browser_ui_fallback",
+  "freshness_complement_path_id": "drive_linked_sources",
+  "rejected_path_ids": [
+    "official_consumer_api",
+    "official_enterprise_api",
+    "gemini_notebooks_ui_sync"
+  ],
+  "paths": [
+    {
+      "id": "official_consumer_api",
+      "name": "Official consumer NotebookLM / Gemini Notebook API",
+      "product": "personal Gemini Notebook (notebooklm.google.com)",
+      "auth": "none documented; personal Google Account in the UI",
+      "evidence": [
+        "https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks",
+        "https://support.google.com/gemininotebook/answer/16215270"
+      ],
+      "operations": {
+        "create_notebook": "unsupported",
+        "add_source": "unsupported",
+        "replace_source": "unsupported",
+        "delete_notebook": "unsupported",
+        "list_notebooks": "unsupported",
+        "validate_source_freshness": "unsupported"
+      },
+      "notes": "No public consumer write API identified in reviewed first-party docs on 2026-09-12; bounded research, not proof of private interface absence."
+    },
+    {
+      "id": "official_enterprise_api",
+      "name": "Gemini Notebook Enterprise Discovery Engine API",
+      "product": "Gemini Notebook Enterprise (GCP)",
+      "auth": "gcloud access token on a GCP project with Enterprise license",
+      "evidence": [
+        "https://cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks last updated 2026-09-03",
+        "https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks-sources"
+      ],
+      "rest_methods": [
+        "notebooks.create",
+        "notebooks.get",
+        "notebooks.listRecentlyViewed",
+        "notebooks.batchDelete",
+        "notebooks.share",
+        "notebooks.sources.batchCreate",
+        "notebooks.sources.uploadFile",
+        "notebooks.sources.get",
+        "notebooks.sources.batchDelete"
+      ],
+      "operations": {
+        "create_notebook": "supported",
+        "add_source": "supported",
+        "replace_source": "partial",
+        "delete_notebook": "supported",
+        "list_notebooks": "supported",
+        "validate_source_freshness": "unsupported"
+      },
+      "notes": "Official, but a different product. Source replace is delete+create; no documented freshness/sync. Adopting it is a SKU/GCP decision, not the C021 default."
+    },
+    {
+      "id": "gemini_notebooks_ui_sync",
+      "name": "Gemini Notebooks bidirectional UI sync",
+      "product": "Gemini app Notebooks <-> NotebookLM (consumer)",
+      "auth": "same Google Account in the Gemini and NotebookLM UIs",
+      "evidence": [
+        "First-party search synopsis supports cross-app sync; detailed April timing/object/Studio claims are historical and not revalidated because full help page was challenged."
+      ],
+      "operations": {
+        "create_notebook": "partial",
+        "add_source": "partial",
+        "replace_source": "unsupported",
+        "delete_notebook": "partial",
+        "list_notebooks": "partial",
+        "validate_source_freshness": "unsupported"
+      },
+      "notes": "UI sync is observed in public search synopsis. No programmatic write API was identified in reviewed docs; exact sync object semantics remain unverified."
+    },
+    {
+      "id": "drive_linked_sources",
+      "name": "Google Drive/Docs indirection",
+      "product": "consumer NotebookLM Drive sources + optional git-to-Drive staging",
+      "auth": "Google Account that owns both Drive files and the notebook",
+      "evidence": [
+        "MCP tools notebook_add_drive, source_list_drive, source_sync_drive",
+        "api_client.check_source_freshness and sync_drive_source",
+        "Enterprise Drive sources exist, but consumer freshness is the reverse-engineered RPC"
+      ],
+      "operations": {
+        "create_notebook": "unsupported",
+        "add_source": "partial",
+        "replace_source": "partial",
+        "delete_notebook": "unsupported",
+        "list_notebooks": "unsupported",
+        "validate_source_freshness": "partial"
+      },
+      "notes": "Best native freshness for Drive-linked Docs/Slides/Gemini Notes. Does not create/list/delete notebooks by itself. Markdown from git is not Drive-native; a git-to-Drive uploader would be extra, unbuilt work. Pasted text and URL sources cannot be freshness-synced. Current consumer help describes automatic Drive source updates; no live MCP freshness canary performed."
+    },
+    {
+      "id": "existing_mcp_text_sources",
+      "name": "Existing C021 MCP + doc-refresh (reuse)",
+      "product": "jeremybrad/notebooklm-mcp reverse-engineered batchexecute + FastMCP",
+      "auth": "browser cookies in ~/.notebooklm-mcp/auth.json (notebooklm-mcp-auth)",
+      "evidence": [
+        "WOR-184 reuse verdict, merged PR #4 at 3681e88",
+        "server.py 31 tools including notebook_create/list/delete and notebook_add_text/url/drive",
+        "doc_refresh.apply_sync_plan add-before-delete, unit-tested offline",
+        "Last live MCP attempt 2026-01-03 failed (wrong cached session)"
+      ],
+      "mcp_tools": {
+        "create_notebook": "notebook_create",
+        "add_source": [
+          "notebook_add_text",
+          "notebook_add_url",
+          "notebook_add_drive"
+        ],
+        "replace_source": [
+          "notebook_add_text then source_delete",
+          "source_sync_drive for Drive"
+        ],
+        "delete_notebook": "notebook_delete",
+        "list_notebooks": "notebook_list",
+        "validate_source_freshness": "source_list_drive + check_source_freshness"
+      },
+      "operations": {
+        "create_notebook": "supported",
+        "add_source": "supported",
+        "replace_source": "partial",
+        "delete_notebook": "supported",
+        "list_notebooks": "supported",
+        "validate_source_freshness": "partial"
+      },
+      "notes": "Preferred automation path for consumer NotebookLM. Source-complete write surface. Live auth and uploads are not proven in this sandbox. Replace for pasted text is add-new-then-delete-old, not an in-place RPC. Freshness RPC covers Drive/Gemini Notes only. Destructive tools require confirm=True."
+    },
+    {
+      "id": "browser_ui_fallback",
+      "name": "Browser / UI automation last resort",
+      "product": "notebooklm.google.com via Chrome computer-use",
+      "auth": "operator logged into Chrome",
+      "evidence": [
+        "docs/NOTEBOOKLM_UI_FALLBACK_PLAYBOOK.md (2026-01-03)",
+        "Guardrail: only after two failed MCP auth refresh attempts"
+      ],
+      "operations": {
+        "create_notebook": "partial",
+        "add_source": "partial",
+        "replace_source": "partial",
+        "delete_notebook": "partial",
+        "list_notebooks": "partial",
+        "validate_source_freshness": "unsupported"
+      },
+      "notes": "Fragile click-path prototype. Explicit last resort. Not a nightly runner. Coordinate clicks, dialogs, and rate limits all fail independently."
+    }
+  ],
+  "manual_only_gaps": [
+    {
+      "id": "cookie_auth_install",
+      "gap": "Chrome login and cookie extraction to ~/.notebooklm-mcp/auth.json",
+      "blocks": "any live MCP write or list"
+    },
+    {
+      "id": "cookie_rotation",
+      "gap": "Re-auth every ~2-4 weeks when cookies expire",
+      "blocks": "unattended nightly soak"
+    },
+    {
+      "id": "host_mcp_registration",
+      "gap": "Install notebooklm-mcp on the operator host and register the MCP client",
+      "blocks": "Claude/Gemini/Cursor tool use"
+    },
+    {
+      "id": "schedule_install",
+      "gap": "launchd install of notebooklm-sync --all --apply --changed-only",
+      "blocks": "PRD-NR01 unattended refresh"
+    },
+    {
+      "id": "live_account_proof",
+      "gap": "Successful notebook_list against Jeremy's Gemini Ultra account",
+      "blocks": "claiming the write surface is operational"
+    },
+    {
+      "id": "pasted_text_freshness",
+      "gap": "No freshness RPC for pasted text or URL sources",
+      "blocks": "Native remote freshness reporting only; offline bundle/hash validation remains executable. Uploaded-content identity needs separate adapter evidence."
+    },
+    {
+      "id": "native_replace",
+      "gap": "No in-place replace-source RPC for text sources",
+      "blocks": "atomic replace; add-before-delete is the workaround"
+    },
+    {
+      "id": "git_to_drive_uploader",
+      "gap": "No existing C021 git-to-Drive publisher",
+      "blocks": "using Drive freshness as the primary markdown refresh path"
+    },
+    {
+      "id": "create_new_then_retire",
+      "gap": "ensure_notebook reuses ID/title instead of always creating a new notebook",
+      "blocks": "WOR-183 preferred create-new-then-retire until WOR-188 implements it"
+    },
+    {
+      "id": "enterprise_sku",
+      "gap": "Gemini Notebook Enterprise + GCP project not in C021 scope",
+      "blocks": "using the only official REST write API"
+    },
+    {
+      "id": "gemini_notebooks_api",
+      "gap": "Gemini Notebooks sync is UI-only",
+      "blocks": "programmatic Gemini-to-NotebookLM writes"
+    },
+    {
+      "id": "destructive_confirm",
+      "gap": "notebook_delete, source_delete, source_sync_drive require confirm=True",
+      "blocks": "headless mutation without an explicit apply contract"
+    }
+  ],
+  "wor188_packet": {
+    "implement": "existing_mcp_text_sources",
+    "reuse": [
+      "src/notebooklm_mcp/server.py",
+      "src/notebooklm_mcp/api_client.py",
+      "src/notebooklm_mcp/doc_refresh/notebook_sync.py",
+      "src/notebooklm_mcp/sync_cli.py"
+    ],
+    "do_not_rebuild": true,
+    "do_not_switch_to_enterprise_without_jeremy": true,
+    "lifecycle": "Existing ensure_notebook is in-place evidence only. Implement WOR-188 create-new-then-retire with dry-run receipts; retirement requires source count, bundle hash/ID and query readiness validation. This audit does not change acceptance.",
+    "drive_optional": "Use Drive-linked sources only for documents that already live in Drive. Do not invent a git-to-Drive publisher inside WOR-188.",
+    "stop_lines": [
+      "No live NotebookLM mutations from this research packet",
+      "No second documentation manifest (WOR-186 owns that)",
+      "No scheduler installation",
+      "No cookie writes"
+    ],
+    "acceptance": [
+      "WOR187: idempotent bundler on C021 and at least one current core repo; unchanged rerun stable; changed-source bundle hash and receipt evidence.",
+      "WOR188: dry-run and separately authorized live test receipts for one test notebook.",
+      "Retirement gated by source count, bundle ID/hash, and basic query readiness.",
+      "Current notebook_query exposes answer text, not structured citations; citation extraction and association to new bundle sources require adapter proof.",
+      "Local hashes establish local changes; uploaded-content identity requires separate evidence. Offline development is not blocked by absent native freshness RPC or live credentials."
+    ]
+  },
+  "public_sources_verified_at": "2026-09-12",
+  "public_google_docs_read": true
+}
