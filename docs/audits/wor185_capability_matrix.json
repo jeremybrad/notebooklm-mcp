@@ -78,8 +78,7 @@
       "product": "Gemini app Notebooks <-> NotebookLM (consumer)",
       "auth": "same Google Account in the Gemini and NotebookLM UIs",
       "evidence": [
-        "Google AI Ultra/Pro/Plus bidirectional sync rolled out April 2026 (web)",
-        "Sources, chats-in-notebook, and custom instructions sync; Studio outputs do not"
+        "First-party search synopsis supports cross-app sync; detailed April timing/object/Studio claims are historical and not revalidated because full help page was challenged."
       ],
       "operations": {
         "create_notebook": "partial",
@@ -89,7 +88,7 @@
         "list_notebooks": "partial",
         "validate_source_freshness": "unsupported"
       },
-      "notes": "UI-only hybrid workflow. Creating in Gemini can mirror a notebook to NotebookLM, but there is no programmatic create/add/replace/freshness API. Not an automation path."
+      "notes": "UI sync is observed in public search synopsis. No programmatic write API was identified in reviewed docs; exact sync object semantics remain unverified."
     },
     {
       "id": "drive_linked_sources",
@@ -196,7 +195,7 @@
     {
       "id": "pasted_text_freshness",
       "gap": "No freshness RPC for pasted text or URL sources",
-      "blocks": "validate_source_freshness for git markdown bundles"
+      "blocks": "Native remote freshness reporting only; offline bundle/hash validation remains executable. Uploaded-content identity needs separate adapter evidence."
     },
     {
       "id": "native_replace",
@@ -246,6 +245,13 @@
       "No second documentation manifest (WOR-186 owns that)",
       "No scheduler installation",
       "No cookie writes"
+    ],
+    "acceptance": [
+      "WOR187: idempotent bundler on C021 and at least one current core repo; unchanged rerun stable; changed-source bundle hash and receipt evidence.",
+      "WOR188: dry-run and separately authorized live test receipts for one test notebook.",
+      "Retirement gated by source count, bundle ID/hash, and basic query readiness.",
+      "Current notebook_query exposes answer text, not structured citations; citation extraction and association to new bundle sources require adapter proof.",
+      "Local hashes establish local changes; uploaded-content identity requires separate evidence. Offline development is not blocked by absent native freshness RPC or live credentials."
     ]
   },
   "public_sources_verified_at": "2026-09-12",

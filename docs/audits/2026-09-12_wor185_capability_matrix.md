@@ -86,9 +86,10 @@ future option only if Jeremy wants a Cloud SKU; it is not the C021 default.
 
 ### 2. Gemini notebooks sync path
 
-April 2026 bidirectional sync between Gemini Notebooks and NotebookLM is a
-**UI product feature** (sources, in-notebook chats, custom instructions).
-Studio outputs do not sync. There is no API to create a Gemini notebook,
+Current first-party search results describe cross-app notebook sync. The
+previously cited April timing, exact synchronized objects, and Studio-output
+exclusion were not revalidated because full help-page access was blocked;
+these details remain historical/unverified and are not selection evidence. There is no API to create a Gemini notebook,
 push a repo bundle, or assert freshness. Using Gemini as a mirror does not
 remove the consumer-API gap.
 
@@ -159,7 +160,11 @@ could not close:
 - Preserve the observed in-place implementation as evidence only. WOR-188 owns the create-new-then-retire adapter and must satisfy its retirement gates; this audit does not downgrade that acceptance.
 - For WOR-188 create-new-then-retire, gate old-notebook delete on:
   new notebook exists, source count matches bundle, content hashes match,
-  and a read-only `notebook_query` returns a citation. Never delete first.
+  and basic query readiness is verified. Citation extraction and association
+  with the new bundle's sources remain an explicit WOR-188 adapter requirement:
+  the current wrapper exposes answer text, not structured citation metadata.
+  Do not claim a citation gate works until that association is validated.
+  Never delete first.
 - Drive sync is optional and only for Drive-native sources.
 - Stop lines: no live mutations from this research PR; no second manifest;
   no scheduler install; no cookie writes; no Enterprise client.
@@ -185,3 +190,7 @@ this draft is not Done.
 [Google Cloud notebook API documentation](https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks) identifies an Enterprise preview with license/project prerequisites and create/get/recent-list/delete operations. A recent-list endpoint is not an exhaustive inventory guarantee. [Consumer source guidance](https://support.google.com/gemininotebook/answer/16215270) now describes automatic updates for Drive imports, with manual sync available; the existing MCP freshness helpers remain source-level observations, not a live service canary. [Gemini notebook help](https://support.google.com/notebooklm/answer/17003757) search results describe cross-app syncing; opening that page was blocked by Google's browser challenge, so the full page was not revalidated here.
 
 These public reads do not establish authenticated write health. No cookie files, private sources, or Google mutation endpoints were accessed. Authentication, runtime setup and scheduling are activation prerequisites; they do not prevent offline WOR-187 bundle generation or synthetic WOR-188 adapter development. Live upload/retirement and query acceptance still need their named operator authorization and working account access. Cookie lifetime is historical documentation, not a guaranteed rotation interval.
+
+## Concrete continuation acceptance
+
+WOR-187 requires an idempotent bundle generator verified on C021 and a current core repo, with stable no-change reruns and changed-source hash/receipt evidence. It can use synthetic/offline fixtures during development. WOR-188 requires both dry-run and separately authorized live test receipts for one test notebook, plus source count, bundle identity/hash and query readiness before retirement. Local file-hash changes establish local freshness only; uploaded-content identity and citation association require their own adapter evidence. Neither missing native remote freshness RPC nor absent credentials blocks offline implementation.
