@@ -63,6 +63,11 @@ Include/exclude precedence:
    parent escape, UNC/tilde, or symlink whose target leaves the repo).
 3. Drop any candidate matching an exclusion glob (global list, then per-repo
    extra exclusions). Exclusions always win over includes/`extra_docs`.
+   Existing literal components use filesystem directory-entry identity: alternate
+   case/Unicode spellings of include paths are omitted, and existing literal
+   exclusion prefixes resolve to their actual spelling. Wildcard matching remains
+   case-sensitive. Identity lookup errors omit candidates; missing suffixes retain
+   ordinary missing-required reporting.
 4. Directory entries with `scan_pattern` expand to matching files, then the
    same containment and exclusion rules apply to each file.
 

@@ -71,12 +71,58 @@ def glob_match(relpath: str, pattern: str) -> bool:
     return False
 
 
-def is_excluded(relpath: str, exclusions: Sequence[Exclusion]) -> bool:
-    """True when relpath matches any exclusion glob."""
+def _entry_spelling(repo_path: Path, relpath: str) -> str:
+    """Resolve existing literal components to their directory-entry spelling.
+
+    Missing suffixes and glob suffixes remain lexical. No file contents are read.
+    Ambiguous identities and filesystem errors raise so callers can fail closed.
+    """
+    rel = normalize_relpath(relpath)
+    parts = Path(rel).parts
+    if not rel or Path(rel).is_absolute() or any(p == ".." for p in parts):
+        raise ValueError("not a relative selection path")
+    current = repo_path
+    actual: list[str] = []
+    for index, part in enumerate(parts):
+        requested = current / part
+        if any(char in part for char in "*?[") and not requested.exists():
+            return "/".join(actual + list(parts[index:]))
+        try:
+            names = [entry.name for entry in current.iterdir()]
+        except FileNotFoundError:
+            return "/".join(actual + list(parts[index:]))
+        if part not in names:
+            if not requested.exists():
+                return "/".join(actual + list(parts[index:]))
+            aliases = [name for name in names if requested.samefile(current / name)]
+            if len(aliases) != 1:
+                raise OSError("ambiguous filesystem identity")
+            part = aliases[0]
+        actual.append(part)
+        current = current / part
+    return "/".join(actual)
+
+
+def is_excluded(
+    relpath: str, exclusions: Sequence[Exclusion], repo_path: Optional[Path] = None
+) -> bool:
+    """Match globs, resolving their existing literal prefixes on the filesystem.
+
+    Wildcards keep their established case-sensitive matching semantics. Literal
+    case/Unicode aliases use directory-entry identity when a repo is supplied.
+    """
     for item in exclusions:
         pattern = item if isinstance(item, str) else str(item.get("pattern") or "")
         if pattern and glob_match(relpath, pattern):
             return True
+        if pattern and repo_path is not None:
+            try:
+                actual = _entry_spelling(repo_path, relpath)
+                actual_pattern = _entry_spelling(repo_path, pattern)
+            except (OSError, ValueError, RuntimeError):
+                return True
+            if glob_match(actual, actual_pattern):
+                return True
     return False
 
 
@@ -145,6 +191,12 @@ def path_is_contained(repo_path: Path, relpath: str) -> bool:
     except (OSError, ValueError, RuntimeError):
         return False
 
+    try:
+        # A different filesystem spelling can conceal an excluded identity.
+        if _entry_spelling(repo, text) != Path(text).as_posix():
+            return False
+    except (OSError, ValueError, RuntimeError):
+        return False
     return True
 
 
@@ -162,7 +214,7 @@ def filter_contained_relpaths(
             continue
         if not path_is_contained(repo_path, rel):
             continue
-        if is_excluded(rel, exclusions):
+        if is_excluded(rel, exclusions, repo_path):
             continue
         seen.add(rel)
         kept.append(rel)

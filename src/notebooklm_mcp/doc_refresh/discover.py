@@ -214,7 +214,7 @@ def _expand_scan(
             continue
         if not path_is_contained(repo_path, rel):
             continue
-        if is_excluded(rel, exclusions):
+        if is_excluded(rel, exclusions, repo_path):
             continue
         item = _make_item(
             repo_path=repo_path,
@@ -264,7 +264,7 @@ def _discover_one_def(
             full = repo_path / rel
         if not path_is_contained(repo_path, rel):
             continue
-        if is_excluded(rel, exclusions):
+        if is_excluded(rel, exclusions, repo_path):
             # Exclusion wins: skip this name even if it exists.
             continue
         try:

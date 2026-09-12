@@ -322,3 +322,117 @@ def test_exclusions_use_selected_path_identity_and_preserve_directory_discovery(
         assert is_excluded(alias, ["docs/restricted.md"])
         assert Path(alias) == Path("docs/restricted.md")
     assert not glob_match("", "*")
+
+
+@pytest.mark.parametrize("alias", ["docs/RESTRICTED.md", "DOCS/restricted.md", "DOCS/RESTRICTED.md"])
+def test_filesystem_alias_cannot_select_excluded_file(tmp_path, alias):
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "docs/restricted.md", "synthetic excluded")
+    if not (repo / alias).exists():
+        pytest.skip("requires filesystem case aliases")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": "docs/restricted.md"}],
+        "extra_docs": [{"path": alias}],
+    }
+    result = discover_repo(repo, manifest, EMPTY_MAP)
+    assert not any((repo / d.path).is_file() and (repo / d.path).samefile(repo / "docs/restricted.md") for d in result.docs)
+    assert not path_is_contained(repo, alias)
+
+
+@pytest.mark.parametrize("excluded", ["docs/RESTRICTED.md", "DOCS/restricted.md", "DOCS/*.md"])
+def test_filesystem_alias_exclusion_covers_canonical_file(tmp_path, excluded):
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "docs/restricted.md", "synthetic excluded")
+    if not (repo / "DOCS/RESTRICTED.md").exists():
+        pytest.skip("requires filesystem case aliases")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": excluded}],
+        "extra_docs": [{"path": "docs/restricted.md"}],
+    }
+    assert not any(d.path == Path("docs/restricted.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
+
+
+def test_exact_filesystem_identity_preserves_safe_and_missing_paths(tmp_path):
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "docs/Allowed.md", "synthetic allowed")
+    assert path_is_contained(repo, "docs/Allowed.md")
+    assert path_is_contained(repo, "docs/missing.md")
+    assert not path_is_contained(repo, "docs/../README.md")
+    (repo / "alias").symlink_to(repo / "docs", target_is_directory=True)
+    assert not path_is_contained(repo, "alias/Allowed.md")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {"extra_docs": [{"path": "docs/Allowed.md"}]}
+    assert any(d.path == Path("docs/Allowed.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
+
+
+def test_case_distinct_files_remain_distinct_where_supported(tmp_path):
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "docs/lower.md", "synthetic restricted")
+    if (repo / "docs/LOWER.md").exists():
+        pytest.skip("requires case-sensitive filesystem")
+    _write(repo / "docs/LOWER.md", "synthetic allowed")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": "docs/lower.md"}],
+        "extra_docs": [{"path": "docs/LOWER.md"}],
+    }
+    assert path_is_contained(repo, "docs/LOWER.md")
+    assert any(d.path == Path("docs/LOWER.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
+
+
+def test_normalization_alias_cannot_select_excluded_file(tmp_path):
+    import unicodedata
+    repo = build_simple_repo(tmp_path)
+    name = "caf\N{LATIN SMALL LETTER E WITH ACUTE}.md"
+    _write(repo / "docs" / name, "synthetic excluded")
+    actual = next((repo / "docs").iterdir()).name
+    alternate = unicodedata.normalize("NFD" if actual == unicodedata.normalize("NFC", actual) else "NFC", actual)
+    alias = repo / "docs" / alternate
+    if alternate == actual or not alias.exists():
+        pytest.skip("requires filesystem Unicode normalization aliases")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": "docs/" + actual}],
+        "extra_docs": [{"path": "docs/" + alternate}],
+    }
+    assert not any((repo / d.path).is_file() and (repo / d.path).samefile(alias) for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
+
+
+def test_filesystem_identity_applies_to_scan_alternates_and_filter(tmp_path):
+    from notebooklm_mcp.doc_refresh.discover import _discover_one_def, _expand_scan
+    from notebooklm_mcp.doc_refresh.selection import filter_contained_relpaths
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "docs/restricted.md", "synthetic excluded")
+    if not (repo / "DOCS/RESTRICTED.md").exists():
+        pytest.skip("requires filesystem case aliases")
+    excluded = [{"pattern": "DOCS/restricted.md"}]
+    assert _expand_scan(repo, repo.name, {"scan_pattern": "docs/*.md"}, 2, {}, excluded, {}) == []
+    assert _expand_scan(repo, repo.name, {"scan_pattern": "DOCS/*.md"}, 2, {}, [], {}) == []
+    assert _discover_one_def(repo, repo.name, {"path": "docs/RESTRICTED.md", "alternate_names": ["docs/restricted.md"]}, 2, {}, excluded, {}) == []
+    assert filter_contained_relpaths(repo, ["docs/restricted.md", "docs/RESTRICTED.md"], excluded) == []
+
+
+def test_filesystem_identity_lookup_error_fails_closed(tmp_path, monkeypatch):
+    from notebooklm_mcp.doc_refresh import selection
+    repo = build_simple_repo(tmp_path)
+    def denied(*args):
+        raise PermissionError("synthetic lookup denial")
+    monkeypatch.setattr(selection, "_entry_spelling", denied)
+    assert not path_is_contained(repo, "README.md")
+    assert is_excluded("README.md", ["private/**"], repo)
+
+
+def test_literal_glob_character_filename_still_checks_identity(tmp_path):
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "docs/restricted?.md", "synthetic excluded")
+    if not (repo / "docs/RESTRICTED?.md").exists():
+        pytest.skip("requires filesystem case aliases")
+    assert not path_is_contained(repo, "docs/RESTRICTED?.md")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": "docs/restricted?.md"}],
+        "extra_docs": [{"path": "docs/RESTRICTED?.md"}],
+    }
+    assert not any(d.path == Path("docs/RESTRICTED?.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
