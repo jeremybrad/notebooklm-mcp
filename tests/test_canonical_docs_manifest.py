@@ -449,3 +449,42 @@ def test_exclusion_identity_does_not_walk_symlink_target(tmp_path, monkeypatch):
         return original(path)
     monkeypatch.setattr(Path, "iterdir", bounded)
     assert is_excluded("README.md", ["alias/private.md"], repo)
+
+
+@pytest.mark.parametrize("parent", ["docs", "docs/deep"])
+def test_basename_exclusion_uses_candidate_parent_identity(tmp_path, parent):
+    from notebooklm_mcp.doc_refresh.selection import filter_contained_relpaths, is_excluded
+
+    repo = tmp_path / "repo"
+    _write(repo / parent / "restricted.md", "synthetic")
+    if not (repo / parent / "RESTRICTED.md").exists():
+        pytest.skip("requires filesystem case aliases")
+    # An unrelated same-name root file must not control the nested identity.
+    _write(repo / "RESTRICTED.md", "unrelated synthetic root file")
+    rel = parent + "/restricted.md"
+    assert is_excluded(rel, ["RESTRICTED.md"], repo)
+    assert filter_contained_relpaths(repo, [rel], [{"pattern": "RESTRICTED.md"}]) == []
+
+
+def test_basename_unicode_alias_exclusion_uses_candidate_parent(tmp_path):
+    import unicodedata
+    from notebooklm_mcp.doc_refresh.selection import is_excluded
+
+    repo = tmp_path / "repo"
+    name = "r\u00e9stricted.md"
+    _write(repo / "docs" / name, "synthetic")
+    actual = next((repo / "docs").iterdir()).name
+    alternate = unicodedata.normalize("NFD" if actual == unicodedata.normalize("NFC", actual) else "NFC", actual)
+    if alternate == actual or not (repo / "docs" / alternate).exists():
+        pytest.skip("requires filesystem normalization aliases")
+    assert is_excluded("docs/" + actual, [alternate], repo)
+
+
+def test_basename_identity_preserves_wildcards_and_missing_patterns(tmp_path):
+    from notebooklm_mcp.doc_refresh.selection import is_excluded
+
+    repo = tmp_path / "repo"
+    _write(repo / "docs/restricted.md", "synthetic")
+    assert not is_excluded("docs/restricted.md", ["*.MD", "missing.md"], repo)
+    assert is_excluded("docs/restricted.md", ["*.md"], repo)
+    assert is_excluded("docs/restricted.md", ["docs/restricted.md"], repo)

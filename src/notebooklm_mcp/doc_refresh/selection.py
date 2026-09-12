@@ -120,7 +120,14 @@ def is_excluded(
         if pattern and repo_path is not None:
             try:
                 actual = _entry_spelling(repo_path, relpath)
-                actual_pattern = _entry_spelling(repo_path, pattern)
+                literal = normalize_relpath(pattern)
+                if "/" not in literal and not any(char in literal for char in "*?["):
+                    # Basename exclusions apply at every depth: resolve aliases
+                    # beside this candidate, never against an unrelated root file.
+                    literal = (Path(actual).parent / literal).as_posix()
+                else:
+                    literal = pattern
+                actual_pattern = _entry_spelling(repo_path, literal)
             except (OSError, ValueError, RuntimeError):
                 return True
             if glob_match(actual, actual_pattern):
