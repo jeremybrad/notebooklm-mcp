@@ -5,7 +5,7 @@ import hashlib
 import pytest
 
 from notebooklm_mcp.doc_refresh.drive_publication import (
-    DocsBinding, SourceText, parse_document, plan_update, render_bundle, verify_readback,
+    Bundle, DocsBinding, SourceText, parse_document, plan_update, render_bundle, verify_readback,
 )
 
 
@@ -15,7 +15,8 @@ def digest(text):
 
 def document(text='\n', revision='r1', document_id='synthetic-doc', tab_id='t1'):
     end = 1 + len(text.encode('utf-16-le')) // 2
-    return {'documentId': document_id, 'revisionId': revision, 'tabs': [{
+    return {'documentId': document_id, 'revisionId': revision,
+            'suggestionsViewMode': 'SUGGESTIONS_INLINE', 'tabs': [{
         'tabProperties': {'tabId': tab_id}, 'documentTab': {'body': {'content': [
             {'endIndex': 1, 'sectionBreak': {}},
             {'startIndex': 1, 'endIndex': end, 'paragraph': {'elements': [
@@ -55,8 +56,8 @@ def test_bundle_requires_nonempty_unique_sources_and_revision():
         render_bundle('Example', [SourceText('C021_example', 'README.md', 'main', 'text')])
 
 
-@pytest.mark.parametrize('content', ['bad\x00text', 'bad\x0btext', '\ud800'])
-def test_bundle_rejects_text_google_would_strip_or_cannot_encode(content):
+@pytest.mark.parametrize('content', ['bad\x00text', 'bad\x0ctext', '\ue000', '\ud800'])
+def test_bundle_rejects_stripped_characters_and_unpaired_surrogates(content):
     with pytest.raises(ValueError):
         render_bundle('Example', [source(content=content)])
 
@@ -172,3 +173,49 @@ def test_pilot_never_reads_sources_or_opens_network(monkeypatch):
     assert result['notebooklm_freshness'] == 'not_checked'
     assert result['repeat_action'] == 'unchanged'
     assert result['bundle']['source_count'] == 2
+
+
+@pytest.mark.parametrize('mode', [
+    'PREVIEW_SUGGESTIONS_ACCEPTED', 'PREVIEW_WITHOUT_SUGGESTIONS',
+    'DEFAULT_FOR_CURRENT_ACCESS', 'UNKNOWN', None, '',
+])
+@pytest.mark.parametrize('phase', ['planning', 'readback'])
+def test_preview_or_ambiguous_view_cannot_enter_publication_flow(mode, phase):
+    bundle = render_bundle('Synthetic', [source()])
+    plan = plan_update(bundle, parse_document(document()), binding())
+    raw = document() if phase == 'planning' else document(bundle.text, revision='r2')
+    if mode is None:
+        raw.pop('suggestionsViewMode')
+    else:
+        raw['suggestionsViewMode'] = mode
+    with pytest.raises(ValueError, match='SUGGESTIONS_INLINE'):
+        if phase == 'planning':
+            plan_update(bundle, parse_document(raw), binding())
+        else:
+            verify_readback(plan, parse_document(raw))
+
+
+@pytest.mark.parametrize('old', ['Old managed text\n', '\n'])
+@pytest.mark.parametrize('text,count', [
+    ('\n', 1), ('', 1), (' \t\n', 1), ('New\n', 0), ('New\n', -1),
+    ('New\n', True), ('New\n', '1'),
+])
+def test_direct_empty_or_sourceless_bundle_refuses_before_any_plan(old, text, count):
+    bundle = Bundle(text, digest(text), count)
+    with pytest.raises(ValueError, match='nonempty publication|positive source_count'):
+        plan_update(bundle, parse_document(document(old)), binding(old))
+
+
+def test_soft_break_is_explicitly_unsupported_in_sources_and_remote_text():
+    # U+000B is valid Google text, but outside this adapter's supported subset.
+    with pytest.raises(ValueError, match='Unsupported'):
+        render_bundle('Synthetic', [source(content='One\vTwo')])
+    with pytest.raises(ValueError, match='Unsupported'):
+        parse_document(document('One\vTwo\n'))
+
+
+def test_empty_source_content_still_renders_a_nonempty_publication():
+    bundle = render_bundle('Synthetic', [source(content='')])
+    plan = plan_update(bundle, parse_document(document()), binding())
+    assert plan.body['requests'][0]['insertText']['text']
+    assert verify_readback(plan, parse_document(apply_requests(plan, document()))) == bundle.sha256

@@ -1,7 +1,7 @@
 """Run only the built-in synthetic Drive planning example; never perform I/O.
 
 The CLI prints to stdout. It accepts no source paths, account, destination,
-credentials or apply flag. Real integration remains gated by WOR-186.
+credentials or apply flag. Real integration must use the accepted source manifest.
 """
 import argparse
 from dataclasses import asdict
@@ -24,6 +24,7 @@ def _synthetic_snapshot(text: str, revision: str) -> dict:
         ]}})
         cursor = end
     return {'documentId': 'synthetic-document-not-a-live-destination', 'revisionId': revision,
+            'suggestionsViewMode': 'SUGGESTIONS_INLINE',
             'tabs': [{'tabProperties': {'tabId': 'synthetic-tab'},
                       'documentTab': {'body': {'content': content}}}]}
 
