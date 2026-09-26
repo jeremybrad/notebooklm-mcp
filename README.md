@@ -6,8 +6,9 @@ An MCP server for **NotebookLM** (notebooklm.google.com).
 
 The separate [documentation publisher](docs/doc_refresh/PUBLISHER.md) combines
 pinned repository bundles, guarded native Google Docs updates and publication
-receipts. Start with its offline plan. Its production OAuth provider and nightly
-activation remain unconfigured; the existing MCP cookie login is separate.
+receipts. Start with its offline plan. An explicit [OAuth/Keychain provider](docs/doc_refresh/GOOGLE_OAUTH.md)
+is implemented; live enrollment, host acceptance and nightly activation remain
+pending. The existing MCP cookie login is separate.
 
 > **Note:** Tested with Pro/free tier accounts. May work with NotebookLM Enterprise accounts but has not been tested.
 

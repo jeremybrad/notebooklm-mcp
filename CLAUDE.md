@@ -3,8 +3,9 @@
 ## SESSION RECOVERY (Read First After Compaction)
 
 **Repo-document publisher work:** start with [PUBLISHER.md](docs/doc_refresh/PUBLISHER.md).
-Use the offline plan with explicit repo/commit/map/receipt paths. Production OAuth
-is unconfigured. Do not apply the cookie-recovery advice below to this path:
+Use the offline plan with explicit repo/commit/map/receipt paths. Google OAuth
+provider code exists; actual enrollment and host acceptance are pending. Follow
+[GOOGLE_OAUTH.md](docs/doc_refresh/GOOGLE_OAUTH.md). Do not apply cookie recovery:
 the old installed writer must be quiesced before shared auth repair or activation.
 No installation, canonical pull, credential change or scheduling follows from a
 publisher code merge. Current ownership and remaining activation work: WOR-188/189.
@@ -66,7 +67,9 @@ src/notebooklm_mcp/
 - `notebooklm-sync` - CLI for deterministic doc syncing with receipts
 - `doc-refresh` - Scheduled doc refresh engine (used by launchd nightly job)
 - `repo-doc-publish` - Explicit documentation publisher; offline plan/status work,
-  live modes refuse without a separately reviewed credential-provider integration
+  live modes require explicit OAuth/Keychain configuration and approved bindings
+- `repo-doc-auth` - Credential-free config diagnosis and explicit operator OAuth
+  enrollment/renewal; never automatically invoked by publication or scheduling
 
 ### CLI Tools
 

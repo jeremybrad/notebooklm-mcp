@@ -7,6 +7,14 @@ Version numbers in pyproject.toml (no git tags).
 
 ## [Unreleased]
 
+### Added
+- WOR-188: explicit Google Desktop OAuth enrollment/renewal and refresh-to-lease
+  provider for the existing documentation publisher. Uses one selected macOS
+  login-Keychain item, bounded PKCE loopback consent, pinned account/client and
+  destinations, fixed redacted failures and synthetic tests. Adds `repo-doc-auth`
+  and `repo-doc-publish --credentials-config`; offline commands stay credential-free.
+  No live credentials, host acceptance, uploads, installation or scheduling changes.
+
 ### Fixed
 - WOR-788 / WOR-789: require explicit inline-suggestions Docs responses for
   planning/readback and reject empty or sourceless publication bundles. Document
