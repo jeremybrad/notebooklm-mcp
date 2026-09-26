@@ -30,6 +30,80 @@ from notebooklm_mcp.doc_refresh.selection import glob_match
 EMPTY_MAP = {"notebooks": {}, "sync_log": [], "config": {}}
 
 
+@pytest.mark.parametrize("pattern", ["docs/**/restricted.md", "docs/**/**/restricted.md"])
+@pytest.mark.parametrize("relative", ["docs/restricted.md", "docs/one/restricted.md", "docs/one/two/restricted.md"])
+def test_recursive_exclusions_cover_every_depth(tmp_path, pattern, relative):
+    repo = build_simple_repo(tmp_path)
+    _write(repo / relative, "synthetic excluded")
+    _write(repo / "docs/allowed.md", "synthetic allowed")
+    manifest = load_manifest()
+    manifest["exclusions"].append({"pattern": pattern, "reason": "recursive privacy"})
+    manifest["repo_overrides"][repo.name] = {
+        "extra_docs": [
+            {"path": relative, "purpose": "excluded fixture"},
+            {"path": "docs/allowed.md", "purpose": "allowed fixture"},
+        ]
+    }
+    selected = _existing(discover_repo(repo, manifest, EMPTY_MAP))
+    assert relative not in selected
+    assert "docs/allowed.md" in selected
+
+
+def test_legacy_automatic_selector_obeys_manifest_privacy(tmp_path):
+    from notebooklm_mcp.sync_cli import discover_tier3_docs
+
+    repo = build_complex_repo(tmp_path)
+    _write(repo / "10_docs/public.md", "synthetic public")
+    (repo / "README.md").unlink()
+    (repo / "README.md").symlink_to(repo / "private/transcript.md")
+    selected = {p.relative_to(repo).as_posix() for p in discover_tier3_docs(repo)}
+    assert "10_docs/public.md" in selected
+    assert not {"README.md", "10_docs/private/notes.md", "private/transcript.md", ".env"} & selected
+    expected = {str(d.path) for d in discover_repo(repo, notebook_map=EMPTY_MAP).existing_docs if (repo / d.path).is_file()}
+    assert selected == expected
+
+
+def test_automatic_cli_keeps_selected_wildcard_filename_literal(tmp_path, monkeypatch):
+    import sys
+    from notebooklm_mcp import sync_cli
+
+    repo = build_simple_repo(tmp_path)
+    _write(repo / "10_docs/guide*.md", "synthetic literal filename")
+    _write(repo / "10_docs/private/notes.md", "synthetic excluded")
+    monkeypatch.setattr(sync_cli, "WORKSPACE_ROOT", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["notebooklm-sync", "--repo", repo.name, "--tier3"])
+    published = []
+    monkeypatch.setattr(sync_cli, "sync_files", lambda name, files, **kwargs: published.extend(files))
+    assert sync_cli.main() == 0
+    assert repo / "10_docs/guide*.md" in published
+    assert repo / "10_docs/private/notes.md" not in published
+
+
+@pytest.mark.parametrize("mode", ["excluded", "internal_symlink", "outside_symlink", "allowed"])
+def test_primer_relations_uses_manifest_selection(tmp_path, monkeypatch, mode):
+    module = importlib.import_module("notebooklm_mcp.doc_refresh.discover")
+    from notebooklm_mcp.primer_gen.sources import gather_sources
+
+    repo = build_simple_repo(tmp_path)
+    target = repo / "RELATIONS.yaml"
+    if mode.endswith("symlink"):
+        private = repo / "private/notes.md" if mode == "internal_symlink" else tmp_path / "outside.md"
+        _write(private, "synthetic private relation")
+        target.symlink_to(private)
+    else:
+        _write(target, "synthetic: public_relation\n")
+    manifest = load_manifest()
+    if mode == "excluded":
+        manifest["exclusions"].append({"pattern": "RELATIONS.yaml", "reason": "explicit privacy"})
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+    monkeypatch.setattr(module, "DEFAULT_MANIFEST_PATH", path)
+    monkeypatch.setattr(module, "load_notebook_map", lambda: EMPTY_MAP)
+    gathered = gather_sources(repo)
+    relations = [d for d in gathered.docs if d.name == "RELATIONS.yaml"]
+    assert len(relations) == (1 if mode == "allowed" else 0)
+
+
 @pytest.mark.parametrize("per_repo", [False, True])
 @pytest.mark.parametrize("exclusions", [["README.md"], [{"patern": "README.md", "reason": "typo"}]])
 def test_supplied_manifest_rejects_malformed_privacy_rules(tmp_path, per_repo, exclusions):

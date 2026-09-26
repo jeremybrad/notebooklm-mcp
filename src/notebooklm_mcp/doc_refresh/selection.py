@@ -45,6 +45,24 @@ def glob_match(relpath: str, pattern: str) -> bool:
     if fnmatch(rel, pat):
         return True
 
+    # A recursive directory component can consume zero directories anywhere,
+    # not just at the start. Keep existing fnmatch matches above, and use a
+    # bounded component-state walk for the additional recursive cases.
+    pattern_parts = pat.split("/")
+    if "**" in pattern_parts:
+        rel_parts = rel.split("/")
+        reachable = {0}
+        for component in pattern_parts:
+            if component == "**":
+                reachable = set(range(min(reachable), len(rel_parts) + 1)) if reachable else set()
+            else:
+                reachable = {
+                    index + 1 for index in reachable
+                    if index < len(rel_parts) and fnmatch(rel_parts[index], component)
+                }
+        if len(rel_parts) in reachable:
+            return True
+
     name = rel.rsplit("/", 1)[-1]
 
     if "/" not in pat:

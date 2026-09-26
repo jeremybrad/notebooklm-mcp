@@ -66,6 +66,14 @@ edit does not change the hash attached to the earlier selection. The standalone
 `manifest_content_hash()` helper still hashes the file at the time it is called.
 Per-document Git last-touch lookup treats filenames as literal paths.
 
+The legacy `notebooklm-sync --repo ... --tier3` automatic selector uses this
+manifest and returns its existing files; it no longer independently globs every
+Markdown file. Automatically selected paths are not expanded again by the CLI.
+The deprecated primer gatherer also uses only this discovery result;
+`RELATIONS.yaml` is an optional tier-1 entry, subject to the same exclusions and
+containment. Explicit manual-file CLI input remains operator-directed and is
+outside this automatic-selection contract.
+
 Include/exclude precedence:
 
 1. Candidate set = tier documents + `repo_overrides.<repo>.extra_docs`.
@@ -76,7 +84,9 @@ Include/exclude precedence:
    Existing literal components use filesystem directory-entry identity: alternate
    case/Unicode spellings of include paths are omitted, and existing literal
    exclusion prefixes resolve to their actual spelling. Wildcard matching remains
-   case-sensitive. Identity lookup errors omit candidates; missing suffixes retain
+   case-sensitive. Recursive `**` directory components match zero or more
+   directories at every position, including `docs/**/restricted.md`.
+   Identity lookup errors omit candidates; missing suffixes retain
    ordinary missing-required reporting.
 4. Directory entries with `scan_pattern` expand to matching files, then the
    same containment and exclusion rules apply to each file. An alias in the

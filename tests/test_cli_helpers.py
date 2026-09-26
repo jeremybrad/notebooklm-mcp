@@ -55,8 +55,8 @@ def test_find_notebook_helpers_match_exact_id_and_title():
     assert sync_cli.find_notebook_by_name(client, "Missing") is None
 
 
-def test_discover_tier3_docs_collects_root_and_nested_markdown(tmp_path: Path):
-    """Tier 3 discovery should include root docs plus one-level nested markdown files."""
+def test_discover_tier3_docs_follows_canonical_manifest(tmp_path: Path):
+    """Automatic selection includes canonical files and configured scans only."""
     (tmp_path / "README.md").write_text("# Readme")
     (tmp_path / "CLAUDE.md").write_text("# Claude")
     (tmp_path / "PROJECT_PRIMER.md").write_text("# Primer")
@@ -87,9 +87,10 @@ def test_discover_tier3_docs_collects_root_and_nested_markdown(tmp_path: Path):
         "PROJECT_PRIMER.md",
         "README.md",
         "RELATIONS.yaml",
-        "docs/guide.md",
-        "docs/nested/nested.md",
     ]
+    # Unlisted docs are no longer added by an independent legacy directory glob.
+    assert "docs/guide.md" not in discovered_names
+    assert "docs/nested/nested.md" not in discovered_names
 
 
 def test_write_receipt_summarizes_actions(monkeypatch, tmp_path: Path):

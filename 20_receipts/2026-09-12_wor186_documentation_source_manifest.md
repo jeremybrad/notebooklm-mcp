@@ -116,3 +116,43 @@ coverage; wheel and source-distribution builds pass. Scope: discover.py,
 manifest.py, their existing test file, INTERFACES.md, this receipt and changelog.
 Independent R9 review and final readiness remain separate evidence on PR #5.
 No live sources, uploads, credentials, scheduling or canonical runtime changes.
+
+## R9 consumer consolidation (2026-09-26, separately authorized)
+
+R9 accepted all four prior repairs but found three P1 privacy gaps: recursive
+exclusions missed zero-directory interior matches; the legacy automatic sync
+selector bypassed the manifest; and the deprecated primer gatherer appended
+unchecked RELATIONS content. All reproduced with synthetic data. Jeremy replied
+“Authorize consolidation and one review” to these fixes, explicitly adding
+`src/notebooklm_mcp/sync_cli.py` and `src/notebooklm_mcp/primer_gen/sources.py`
+to scope and permitting one full-scope Codex subscription review, 30 minutes and
+$0 API spend (observed 2026-09-26T01:58:07Z, not asserted message timestamp).
+The nine prior rounds and all original findings/severities remain recorded.
+
+Eight of twelve new regression cases failed before repair; the other four
+established retained behavior. A component-state walk now recognizes zero or
+more directories for recursive ** components at any position, retaining earlier
+fnmatch matches. The legacy --tier3 automatic selector uses common validated
+discovery and returns existing files only; automatic paths remain literal
+through CLI handoff rather than being expanded a second time. This replaces
+its former broad Markdown glob with the manifest's tiers/overrides. Explicit
+manual-file CLI input remains a separate, unchanged operator-directed path.
+
+RELATIONS.yaml is an optional tier-1 manifest entry. The deprecated primer
+reader no longer appends it independently, so explicit exclusions and internal
+or external symlinks are refused by ordinary discovery. Safe RELATIONS content
+remains available. Tests cover zero/nested/multiple recursive components,
+retained allowed files, private files and symlinks in automatic selection,
+CLI handoff of literal wildcard filenames, explicit RELATIONS exclusions and
+both symlink directions, and safe RELATIONS inclusion. No network or model call
+is needed by these tests. Full test/build evidence and the independently
+assessed revision remain on PR #5; this receipt does not certify readiness.
+No live upload, authentication, scheduler activation or canonical runtime change.
+
+Validation: 160 passed and one filesystem-dependent skip on Python 3.11/3.13;
+whole-package coverage 33%; wheel/sdist build passed. The existing
+`tests/test_cli_helpers.py` assertion expected the superseded broad legacy glob.
+It now asserts canonical manifest membership and omission of unlisted docs;
+this necessary compatibility-test update adds no new behavior beyond the
+approved selector consolidation. Its path is included in the complete review
+context alongside the two newly admitted consumer code paths.

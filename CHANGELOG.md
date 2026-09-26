@@ -52,6 +52,9 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- WOR-186: honor recursive privacy exclusions at every directory depth; route
+  legacy automatic sync and primer source gathering through the shared manifest,
+  including optional RELATIONS.yaml and literal automatic CLI file handoff.
 - WOR-186: validate supplied manifests before selection, bind provenance hashes
   to captured manifest bytes, retain scans through root ancestor aliases, and
   use literal Git paths for per-document last-touch metadata.

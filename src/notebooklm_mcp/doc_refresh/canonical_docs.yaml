@@ -86,6 +86,12 @@ tiers:
           - valid_yaml
           - has_version
 
+      - path: "RELATIONS.yaml"
+        purpose: "Cross-repo boundaries and dependencies"
+        must_exist: false
+        validation:
+          - valid_yaml
+
   tier2:
     name: "Extended (complex repos)"
     description: "Additional docs for repos with more structure"
