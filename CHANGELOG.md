@@ -8,6 +8,11 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-186 documentation source manifest: JSON Schema draft 2020-12 for
+  `canonical_docs.yaml`, default privacy/build exclusions with fail-closed
+  path and symlink containment, `extra_docs` consumption, AGENTS.md and
+  PROJECT_PRIMER.md includes, and synthetic three-repo fixtures.
+  Schema id `c021.canonical_docs.v1`. Adds runtime `jsonschema>=4.18`.
 - WOR-183 / WOR-187 / WOR-188: approved stable Google Docs publication design and
   synthetic offline bundle/update/readback pilot. Real source selection, uploads
   and scheduler integration remain gated; see `docs/doc_refresh/DRIVE_PILOT.md`.
@@ -47,6 +52,24 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- Preserve required-document flags across duplicate tier/override paths and
+  classify repository tiers from the final document set, including extras.
+- Reject repository-root case/Unicode aliases and root symlinks before override
+  lookup, preserving exclusions and supported ancestor aliases. Keep malformed
+  manifest diagnostics type-safe when invalid keys and values coexist.
+- Reject non-string repository override names during manifest validation so YAML
+  numeric, boolean or null keys cannot silently bypass repository exclusions.
+  Quoted numeric and boolean-like repository names remain supported.
+- WOR-186: reject duplicate manifest YAML keys and conflicting merges before
+  overwritten privacy rules can disappear during parsing.
+- WOR-186: honor recursive privacy exclusions at every directory depth; route
+  legacy automatic sync and primer source gathering through the shared manifest,
+  including optional RELATIONS.yaml and literal automatic CLI file handoff.
+- WOR-186: validate supplied manifests before selection, bind provenance hashes
+  to captured manifest bytes, retain scans through root ancestor aliases, and
+  use literal Git paths for per-document last-touch metadata.
+- WOR-186: literal basename exclusions compare resolved filesystem identities
+  directly, preserving privacy exclusions beneath bracket-containing directories.
 - Doc sync replacement flow now uses a safer add-before-delete order to avoid source loss if replacement fails.
 - Artifact completion polling now validates completion against the artifact IDs created in the same run.
 - Cookie parsing now handles headers with optional whitespace after `;`.

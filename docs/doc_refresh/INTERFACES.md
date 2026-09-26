@@ -1,7 +1,7 @@
 # Doc Refresh Interfaces
 
-**Version:** 0.2.0
-**Last Updated:** 2026-01-10
+**Version:** 1.0.0
+**Last Updated:** 2026-09-12
 
 ## CLI Interface
 
@@ -52,14 +52,77 @@
 
 ### canonical_docs.yaml
 
+Validated against `src/notebooklm_mcp/doc_refresh/canonical_docs.schema.json`
+(JSON Schema draft 2020-12, schema id `c021.canonical_docs.v1`).
+`load_manifest()` validates files by default. `discover_repo()` also validates
+caller-supplied mappings before selection, including mappings loaded with the
+loader's explicit `validate=False` option. Invalid privacy entries raise
+`ManifestError`; they are not silently discarded.
+Manifest YAML rejects duplicate mapping keys before values can be overwritten,
+including nested rules and merge collisions. Nonconflicting YAML merges remain
+supported. This structural check also applies with `load_manifest(validate=False)`;
+that option disables schema validation only.
+Repository override names must be strings. Quote numeric or boolean-like YAML
+names (for example, `"123"` or `"true"`). Non-string names raise `ManifestError`
+during validation before selection; names are never coerced, so exclusion rules
+cannot silently miss the repository's string name.
+Discovery checks the repository root's literal directory-entry spelling before
+looking up overrides. Alternate case/Unicode spellings and a symlink at the root
+raise `ManifestError`; symlinked ancestors remain supported. This check does not
+lowercase names or merge identities on case-sensitive filesystems. Malformed
+manifests report validation errors in validator order, without comparing mixed
+key types in diagnostic paths.
+Duplicate document paths retain the first item's tier and metadata, while
+requiredness is the union of all definitions: an optional entry cannot weaken
+any `must_exist: true` requirement. Repository tier classification uses the
+final consolidated documents, including existing extra documents. Missing
+extras do not promote a tier; existing tier-3 documents retain kitted precedence.
+
+Discovery captures manifest bytes once for parsing, validation and its provenance
+hash. A supplied mapping gets a byte hash only when it matches the captured file
+named by `manifest_path`; otherwise the hash is unknown (`None`). A later disk
+edit does not change the hash attached to the earlier selection. The standalone
+`manifest_content_hash()` helper still hashes the file at the time it is called.
+Per-document Git last-touch lookup treats filenames as literal paths.
+
+The legacy `notebooklm-sync --repo ... --tier3` automatic selector uses this
+manifest and returns its existing files; it no longer independently globs every
+Markdown file. Automatically selected paths are not expanded again by the CLI.
+The deprecated primer gatherer also uses only this discovery result;
+`RELATIONS.yaml` is an optional tier-1 entry, subject to the same exclusions and
+containment. Explicit manual-file CLI input remains operator-directed and is
+outside this automatic-selection contract.
+
+Include/exclude precedence:
+
+1. Candidate set = tier documents + `repo_overrides.<repo>.extra_docs`.
+2. Drop any candidate that is not contained in the repo root (absolute path,
+   parent escape, UNC/tilde, or symlink whose target leaves the repo).
+3. Drop any candidate matching an exclusion glob (global list, then per-repo
+   extra exclusions). Exclusions always win over includes/`extra_docs`.
+   Existing literal components use filesystem directory-entry identity: alternate
+   case/Unicode spellings of include paths are omitted, and existing literal
+   exclusion prefixes resolve to their actual spelling. Wildcard matching remains
+   case-sensitive. Recursive `**` directory components match zero or more
+   directories at every position, including `docs/**/restricted.md`.
+   Identity lookup errors omit candidates; missing suffixes retain
+   ordinary missing-required reporting.
+4. Directory entries with `scan_pattern` expand to matching files, then the
+   same containment and exclusion rules apply to each file. An alias in the
+   repository root's ancestors does not change the discovered relative paths.
+
 ```yaml
-# Version header
-# Version: 0.2.0
-# Last Updated: YYYY-MM-DD
+schema: "c021.canonical_docs.v1"
+version: "1.0.0"
+last_updated: "YYYY-MM-DD"
 
 tier3_candidates:          # Paths to check for Tier 3 docs
   - "docs/{repo_name}/"    # Template with repo name
   - "docs/"                # Fallback
+
+exclusions:
+  - pattern: ".env*"       # Glob; also matches basename at any depth
+    reason: "environment files"
 
 tiers:
   tier1:                   # Required tier
@@ -75,6 +138,7 @@ tiers:
 
   tier2:                   # Extended tier
     # Same structure, required: false
+    # Includes CLAUDE.md, AGENTS.md, PROJECT_PRIMER.md, glossary, 10_docs/, 20_receipts/
 
   tier3:                   # Kitted tier
     path_prefix: "{tier3_root}"  # Resolved from candidates
@@ -102,8 +166,21 @@ change_detection:
 repo_overrides:
   RepoName:
     tier3_root: string     # Override path resolution
-    extra_docs: []         # Additional docs to include
+    extra_docs: []         # Additional docs to include (still subject to exclusions)
+    exclusions: []         # Extra privacy globs for this repo
 ```
+
+Discovered `DocItem` freshness metadata (same 12-char SHA-256 prefix as
+notebook-map hashes; no second hash scheme):
+
+| Field | Source |
+|-------|--------|
+| `path` | Repo-relative path |
+| `content_hash` | SHA-256 prefix of file bytes |
+| `source_title` | `DOC: {repo} :: {path}` |
+| `last_commit` | `git log -1` SHA when `.git` exists; otherwise null |
+| `generated_bundle_id` | Reserved for the bundle generator; null here |
+
 
 ### notebook_map.yaml
 
@@ -148,8 +225,10 @@ config:
 | Document | Purpose |
 |----------|---------|
 | `CLAUDE.md` | Claude Code guidance |
+| `AGENTS.md` | Agent instruction routing |
+| `PROJECT_PRIMER.md` | Repo primer |
 | `glossary.yaml` | Domain terms |
-| `10_docs/` | Working agreements |
+| `10_docs/` | Working agreements / PRDs / governance |
 | `20_receipts/` | Change receipts |
 
 ### Tier 3: Kitted (NotebookLM-ready)

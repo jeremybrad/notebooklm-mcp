@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from .auth import load_cached_tokens
 from .api_client import NotebookLMClient
+from .doc_refresh.discover import discover_repo
 from .doc_refresh.manifest import (
     MAX_ORPHAN_FAILURES,
     add_orphan_source,
@@ -116,40 +117,16 @@ def find_notebook_by_name(client: NotebookLMClient, name: str):
 
 
 def discover_tier3_docs(repo_path: Path) -> list[Path]:
-    """Auto-discover Tier 3 documentation files in a repo.
+    """Legacy --tier3 entry point; select files through the shared manifest.
 
-    Tier 3 docs include:
-    - README.md, CLAUDE.md, PROJECT_PRIMER.md (root)
-    - docs/*.md (Tier 3 docs folder)
-    - 10_docs/*.md and 10_docs/**/*.md (Betty Protocol docs)
+    Automatic selection follows canonical tiers and overrides, never an
+    independent directory glob. Notebook state is unnecessary for selection.
     """
-    docs = []
-
-    # Root-level docs
-    for name in ["README.md", "CLAUDE.md", "PROJECT_PRIMER.md", "RELATIONS.yaml"]:
-        path = repo_path / name
-        if path.exists():
-            docs.append(path)
-
-    # docs/ folder (standard Tier 3)
-    docs_folder = repo_path / "docs"
-    if docs_folder.exists():
-        docs.extend(sorted(docs_folder.glob("*.md")))
-        # Also check subdirectories
-        for subdir in docs_folder.iterdir():
-            if subdir.is_dir():
-                docs.extend(sorted(subdir.glob("*.md")))
-
-    # 10_docs/ folder (Betty Protocol)
-    betty_docs = repo_path / "10_docs"
-    if betty_docs.exists():
-        docs.extend(sorted(betty_docs.glob("*.md")))
-        # Also check subdirectories
-        for subdir in betty_docs.iterdir():
-            if subdir.is_dir():
-                docs.extend(sorted(subdir.glob("*.md")))
-
-    return docs
+    discovery = discover_repo(repo_path, notebook_map={})
+    return [
+        repo_path / doc.path for doc in discovery.existing_docs
+        if (repo_path / doc.path).is_file()
+    ]
 
 
 def write_receipt(
@@ -929,6 +906,7 @@ Examples:
     # Handle --repo mode
     repo_id = args.repo
     files = list(args.files) if args.files else []
+    automatic_selection = False
     notebook_name = args.notebook_name
 
     if repo_id:
@@ -943,6 +921,7 @@ Examples:
         # Auto-discover Tier 3 docs if requested
         if args.tier3:
             discovered = discover_tier3_docs(repo_path)
+            automatic_selection = True
             print(f"Discovered {len(discovered)} Tier 3 docs in {repo_id}")
             files = discovered
 
@@ -957,7 +936,7 @@ Examples:
     # Expand glob patterns (shell may not expand them on all platforms)
     expanded_files = []
     for f in files:
-        if "*" in str(f):
+        if not automatic_selection and "*" in str(f):
             expanded_files.extend(Path(".").glob(str(f)))
         else:
             expanded_files.append(f)

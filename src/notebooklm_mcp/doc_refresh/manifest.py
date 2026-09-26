@@ -2,11 +2,16 @@
 Manifest loading and Tier 3 path resolution.
 """
 
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+
+from .hashing import HASH_PREFIX_LENGTH, compute_file_hash
+from .schema import ManifestError, SCHEMA_ID, SCHEMA_PATH, validate_canonical_docs
+from .selection import get_exclusions, get_extra_docs, path_is_contained
 
 
 # Default manifest location (relative to this module)
@@ -16,6 +21,34 @@ DEFAULT_NOTEBOOK_MAP_PATH = DEFAULT_CONFIG_DIR / "notebook_map.yaml"
 NOTEBOOK_MAP_TEMPLATE_PATH = Path(__file__).parent / "notebook_map.template.yaml"
 ORPHAN_LEDGER_KEY = "orphan_ledger"
 MAX_ORPHAN_FAILURES = 5
+
+__all__ = [
+    "DEFAULT_MANIFEST_PATH",
+    "DEFAULT_CONFIG_DIR",
+    "DEFAULT_NOTEBOOK_MAP_PATH",
+    "ManifestError",
+    "SCHEMA_ID",
+    "SCHEMA_PATH",
+    "add_orphan_source",
+    "ensure_notebook_map_defaults",
+    "ensure_repo_data",
+    "get_alternate_names",
+    "get_exclusions",
+    "get_extra_docs",
+    "get_orphan_ledger",
+    "get_stored_hashes",
+    "get_tier3_path_prefix",
+    "get_tier_docs",
+    "load_manifest",
+    "load_notebook_map",
+    "manifest_content_hash",
+    "path_is_contained",
+    "record_orphan_failure",
+    "remove_orphan_source",
+    "resolve_tier3_root",
+    "save_notebook_map",
+    "validate_canonical_docs",
+]
 
 
 def _default_notebook_map() -> dict[str, Any]:
@@ -152,11 +185,67 @@ def record_orphan_failure(
     return retries
 
 
-def load_manifest(manifest_path: Optional[Path] = None) -> dict[str, Any]:
-    """Load the canonical docs manifest YAML."""
+def manifest_content_hash(manifest_path: Optional[Path] = None) -> str:
+    """12-char SHA-256 prefix of the manifest file bytes (same scheme as DocItem)."""
     path = manifest_path or DEFAULT_MANIFEST_PATH
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
+    return compute_file_hash(path)
+
+
+def load_manifest(
+    manifest_path: Optional[Path] = None,
+    *,
+    validate: bool = True,
+) -> dict[str, Any]:
+    """Load the canonical docs manifest YAML and optionally schema-validate it."""
+    loaded, _ = _load_manifest_snapshot(manifest_path, validate=validate)
+    return loaded
+
+
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    """Reject rule overwrites both in explicit mappings and YAML merges."""
+
+    _merge_key = object()
+
+    def _check_keys(self, node: yaml.MappingNode) -> None:
+        seen: set[Any] = set()
+        for key_node, _ in node.value:
+            key = (
+                self._merge_key if key_node.tag == "tag:yaml.org,2002:merge"
+                else self.construct_object(key_node, deep=True)
+            )
+            try:
+                if key in seen:
+                    raise ManifestError(
+                        f"canonical_docs duplicate mapping key at line {key_node.start_mark.line + 1}"
+                    )
+                seen.add(key)
+            except TypeError as exc:
+                raise ManifestError("canonical_docs mapping key is not hashable") from exc
+
+    def flatten_mapping(self, node: yaml.MappingNode) -> None:
+        self._check_keys(node)
+        super().flatten_mapping(node)
+        # Merge construction can introduce collisions absent in the raw keys.
+        self._check_keys(node)
+
+
+def _load_manifest_snapshot(
+    manifest_path: Optional[Path] = None,
+    *,
+    validate: bool = True,
+) -> tuple[dict[str, Any], str]:
+    """Parse and hash the same captured bytes, even if the file later changes."""
+    path = manifest_path or DEFAULT_MANIFEST_PATH
+    raw = path.read_bytes()
+    try:
+        loaded = yaml.load(raw.decode("utf-8"), Loader=_UniqueKeySafeLoader)
+    except (yaml.YAMLError, UnicodeError) as exc:
+        raise ManifestError("canonical_docs YAML could not be parsed") from exc
+    if validate:
+        validate_canonical_docs(loaded)
+    if not isinstance(loaded, dict):
+        raise ManifestError("canonical_docs manifest must be a mapping")
+    return loaded, hashlib.sha256(raw).hexdigest()[:HASH_PREFIX_LENGTH]
 
 
 def load_notebook_map(map_path: Optional[Path] = None) -> dict[str, Any]:
@@ -223,15 +312,19 @@ def resolve_tier3_root(
     if repo_name in overrides:
         override = overrides[repo_name]
         if "tier3_root" in override:
-            tier3_path = repo_path / override["tier3_root"]
-            if tier3_path.exists():
-                return tier3_path
+            rel = override["tier3_root"]
+            if path_is_contained(repo_path, rel):
+                tier3_path = repo_path / rel
+                if tier3_path.exists():
+                    return tier3_path
 
     # Try tier3_candidates in order
     candidates = manifest.get("tier3_candidates", ["docs/"])
     for candidate in candidates:
         # Support {repo_name} template
         resolved = candidate.replace("{repo_name}", _extract_short_name(repo_name))
+        if not path_is_contained(repo_path, resolved):
+            continue
         candidate_path = repo_path / resolved
         if candidate_path.exists():
             return candidate_path

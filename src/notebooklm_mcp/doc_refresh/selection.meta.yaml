@@ -1,0 +1,8 @@
+purpose: Include/exclude selection and fail-closed path containment
+status: active
+dependencies:
+  - fnmatch
+  - pathlib
+created: "2026-09-12"
+last_reviewed: "2026-09-12"
+author: Jeremy Bradford

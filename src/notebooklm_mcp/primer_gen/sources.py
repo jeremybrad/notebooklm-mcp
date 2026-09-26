@@ -98,23 +98,6 @@ def gather_sources(repo_path: Path) -> RepoSources:
             # Skip docs we can't read
             continue
 
-    # Add RELATIONS.yaml if present and not already discovered
-    relations_path = repo_path / "RELATIONS.yaml"
-    if relations_path.exists():
-        relations_in_docs = any(d.name.upper() == "RELATIONS.YAML" for d in docs)
-        if not relations_in_docs:
-            try:
-                content = relations_path.read_text(encoding="utf-8")
-                docs.append(SourceDoc(
-                    path=Path("RELATIONS.yaml"),
-                    tier=1,  # Tier 1 - canonical
-                    name="RELATIONS.yaml",
-                    content=content,
-                    purpose="Cross-repo boundaries and dependencies",
-                ))
-            except Exception:
-                pass
-
     # Parse META.yaml if present
     meta_yaml = None
     meta_doc = next((d for d in docs if d.name.upper() == "META.YAML"), None)
