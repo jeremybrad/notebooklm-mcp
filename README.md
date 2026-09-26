@@ -4,6 +4,11 @@
 
 An MCP server for **NotebookLM** (notebooklm.google.com).
 
+The separate [documentation publisher](docs/doc_refresh/PUBLISHER.md) combines
+pinned repository bundles, guarded native Google Docs updates and publication
+receipts. Start with its offline plan. Its production OAuth provider and nightly
+activation remain unconfigured; the existing MCP cookie login is separate.
+
 > **Note:** Tested with Pro/free tier accounts. May work with NotebookLM Enterprise accounts but has not been tested.
 
 📺 **Watch the Demo** - See the MCP in action!

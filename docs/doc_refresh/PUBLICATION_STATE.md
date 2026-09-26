@@ -7,6 +7,10 @@ state path, CLI, HTTP transport, OAuth, installed-runner or scheduler wiring**.
 Tests use explicit temporary maps and fictional Docs. Existing jobs still use
 their old code path and are not changed by this module.
 
+The later [explicit publisher](PUBLISHER.md) supplies a separate HTTP adapter,
+batch layer and command interface around this library. Its production credential
+provider is unconfigured and no installed job is connected.
+
 ## Existing map, versioned extension
 
 The intended eventual location remains the existing
@@ -75,9 +79,9 @@ introduced. Never provide real repository text until its upload is authorized.
    readback, replacement or fsync error propagates as failure. A no-op sends no
    write but still validates current content and records its verified revision.
 
-No concrete transport is shipped. The canary connector's flattened tab wrapper
-is not accepted here: an eventual adapter must supply the native complete shape
-without discarding unsupported fields, and receive its own review.
+The separate publisher's concrete transport supplies the complete native shape.
+The canary connector's flattened tab wrapper is not accepted here; no adapter
+may discard unsupported fields to make a response pass this parser.
 
 ## Recovery after interruption
 
@@ -129,8 +133,8 @@ observations; no nightly guarantees follow from an interactive canary.
 
 ## Remaining operational decisions
 
-Future work: reviewed Google data OAuth transport/account/scopes, nonempty
-adoption policy, runtime response normalization, real-source authorization,
-host/filesystem acceptance, existing writer/mirror cutover and separately
-authorized activation. Credentials, installed jobs and the actual user map were
-not touched to develop or test this module. Jeremy remains sole merger.
+Future activation still requires reviewed Google data OAuth provisioning and
+live account/scopes/transport acceptance, a nonempty-adoption decision if needed,
+real-source authorization, host/filesystem acceptance and existing writer/mirror
+cutover. Credentials, installed jobs and the actual user map were not touched to
+develop or test this module. Jeremy remains sole merger.
