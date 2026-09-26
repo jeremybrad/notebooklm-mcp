@@ -20,6 +20,7 @@ import uuid
 from . import publication_state as state
 from .publication_state import DocsTransport, MapStore
 from .source_bundle import BundleArtifact, build_bundle
+from .publication_credentials import ProviderError
 
 MODES = frozenset({'plan', 'publish', 'reconcile', 'status'})
 
@@ -277,6 +278,9 @@ def _run(result: dict[str, Any], jobs: Sequence[Job], store: MapStore,
                         freshness=_local(_entry(data, item['repo']), generated.bundle.sha256))
         except KeyboardInterrupt:
             _failed(item, 'interrupted')
+            break
+        except ProviderError as error:
+            _failed(item, 'credential_' + error.code)
             break
         except Exception:
             _failed(item, phase)

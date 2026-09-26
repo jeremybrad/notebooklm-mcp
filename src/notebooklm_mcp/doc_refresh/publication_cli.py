@@ -1,4 +1,4 @@
-"""Explicit publisher commands; no installed credential provider or auth discovery."""
+"""Explicit publisher commands; credential access requires a selected configuration."""
 from __future__ import annotations
 
 import argparse
@@ -9,6 +9,7 @@ from typing import Any
 
 from .publication_batch import Job, ReceiptError, execute
 from .publication_state import MapStore
+from .publication_credentials import ProviderError, load_config, transport_factory
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -44,23 +45,32 @@ def main(argv: list[str] | None = None) -> int:
                         help="Existing local receipt directory outside source repositories")
     parser.add_argument("--manifest", type=Path, help="Explicit accepted source-selection manifest")
     parser.add_argument("--snapshots", type=Path, help="Offline plan only: complete native Docs JSON by repository name")
+    parser.add_argument("--credentials-config", type=Path,
+                        help="Live modes only: explicit nonsecret OAuth/Keychain configuration")
     args = parser.parse_args(argv)
     if args.snapshots and args.mode != "plan":
         parser.error("--snapshots is only valid with plan")
+    if args.credentials_config and args.mode not in {"publish", "reconcile"}:
+        parser.error("--credentials-config is only valid with publish/reconcile")
     try:
         snapshots = _snapshots(args.snapshots) if args.snapshots else None
     except (OSError, ValueError, RecursionError):
         print("Invalid snapshot input", file=sys.stderr)
         return 2
     try:
+        factory = transport_factory(load_config(args.credentials_config, live=True)) \
+            if args.credentials_config else None
+    except ProviderError:
+        print("Invalid credential configuration", file=sys.stderr)
+        return 2
+    try:
         result = execute(args.mode, [Job(Path(path), revision) for path, revision in args.repo],
                          MapStore(args.map_path), args.receipts, manifest_path=args.manifest,
-                         snapshots=snapshots)
+                         snapshots=snapshots, transport_factory=factory)
     except ReceiptError:
         print("Receipt persistence failed; no successful run is claimed", file=sys.stderr)
         return 1
-    # CLI never accepts a token, provider module or credential-store path. Live
-    # modes produce a failed receipt until a reviewed broker wires the API.
+    # No token/provider-module argument, environment discovery or implicit consent.
     print(json.dumps(result, sort_keys=True, indent=2))
     return result["exit_code"]
 

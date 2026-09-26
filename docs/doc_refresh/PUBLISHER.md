@@ -3,7 +3,8 @@
 WOR-188 connects the existing immutable Git bundle builder and publication-state
 library to native Google Docs/Drive HTTP requests and explicit batch operations.
 It is implemented and tested with fictional repositories and mocked HTTP. It is
-**not installed or activated**, and no production OAuth provider is configured.
+**not installed or activated**. An explicit Google OAuth/Keychain provider is
+implemented with synthetic tests; no production grant has been provisioned.
 NotebookLM cookies are not Google Docs OAuth credentials.
 
 ## Start with an offline plan
@@ -40,10 +41,12 @@ produce terminal receipts or an explicit persistence error.
 
 `status` uses the same explicit repo/commit set and reports local recorded
 Docs/source/artifact state, not current Google content. `publish` and `reconcile`
-are recognized commands but **fail closed with a failed receipt**: the command
-has no credential provider. It accepts no bearer token, credential file, provider
-import path or token environment variable. A separately reviewed broker must
-connect the live orchestration API before these modes can perform cloud work.
+require `--credentials-config /explicit/nonsecret/config.json`. Without it they
+fail closed with a failed receipt. They accept no bearer token, provider import
+path or token environment variable. [OAuth setup](GOOGLE_OAUTH.md) describes the
+explicit account/client/destination pins and the separately authorized live
+enrollment procedure. `plan` and `status` reject credential configuration and
+never access Keychain or Google.
 
 ## Integration API and authentication boundary
 
@@ -66,9 +69,10 @@ Each HTTP operation checks that more than 30 seconds remain on the same lease.
 There is no refresh during an operation, hidden credential swap or POST retry.
 The intended OAuth scope is `drive.file`; a token must have access to this
 particular file through its own app. Knowing a Doc ID or having opened it through
-another connector does not establish that access. A future broker should obtain
-its lease before the batch's guarded operation, verify its own OAuth source and
-stop on unavailable/revoked consent. This change reads no actual credential store.
+another connector does not establish that access. The provider reads one explicit
+Keychain item, verifies its pinned grant, refreshes it and checks the same bearer's
+Drive identity before constructing the lease. It stops on unavailable/revoked
+consent. Synthetic implementation tests read no actual credential store.
 
 Google endpoints are fixed. HTTP clients disable redirects and ambient proxy
 configuration, use bounded timeouts and response sizes, and expose redacted
