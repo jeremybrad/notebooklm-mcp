@@ -198,6 +198,14 @@ def main(argv: list[str] | None = None) -> int:
             if args.output.resolve().is_relative_to(Path(path).resolve()):
                 raise ValueError("Output must be outside source repositories")
         results = [build_bundle(Path(path), revision, manifest_path=args.manifest) for path, revision in args.repo]
+        # The user-supplied output can be outside a repo while its derived
+        # OUTPUT/REPO/HASH destination is inside it (e.g. output=repo.parent).
+        # Validate every destination against every input before any batch write.
+        roots = [Path(path).resolve() for path, _ in args.repo]
+        for result in results:
+            destination = (args.output / result.receipt["repo"] / result.bundle.sha256).resolve()
+            if any(destination.is_relative_to(root) for root in roots):
+                raise ValueError("Derived artifact output must be outside source repositories")
         summaries = []
         for result in results:
             paths = write_artifacts(result, args.output)

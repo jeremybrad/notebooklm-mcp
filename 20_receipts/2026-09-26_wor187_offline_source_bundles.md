@@ -43,3 +43,14 @@ branch before independent review. Its existing history remains separate.
 GitHub acquisition is explicit caller prework; this CLI consumes already-local
 GitHub refs/objects and never fetches. Rollback is to stop invoking the new CLI;
 existing refresh entrypoints are unchanged and no runtime was installed.
+
+Independent review R1 covered all seven changed paths and proposed BUNDLE-F1
+(original P2): `--output repo.parent` passed the initial root check but derived
+artifacts inside the source root. A real synthetic CLI regression reproduced
+RED (exit 0 and generated files under the fixture repo). The repair checks every
+derived destination against every input repository before any batch write. The
+new regression requires failure and unchanged Git status; existing inside-root
+and symlink refusals remain. Full history and re-review are retained on PR #9.
+Repair validation: 288 passed / one filesystem-dependent skip on Python
+3.11.14 and 3.13.11; 36% package / 94% bundle-module coverage; wheel/sdist
+builds and diff checks pass. The repaired implementation has 20 new tests.

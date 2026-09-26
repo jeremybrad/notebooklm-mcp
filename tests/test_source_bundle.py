@@ -235,6 +235,12 @@ def test_output_inside_repo_or_symlink_refused(repo, tmp_path):
         write_artifacts(build_bundle(repo, "HEAD"), link)
 
 
+def test_output_parent_cannot_derive_artifacts_inside_source(repo):
+    before = git(repo, "status", "--porcelain", "--untracked-files=all")
+    assert main(["--repo", str(repo), "HEAD", "--output", str(repo.parent)]) == 1
+    assert git(repo, "status", "--porcelain", "--untracked-files=all") == before
+
+
 def test_quarantined_repo_refused_before_blob_read(repo):
     quarantined = repo.with_name("W007_fictional")
     repo.rename(quarantined)
