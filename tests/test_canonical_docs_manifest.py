@@ -30,6 +30,58 @@ from notebooklm_mcp.doc_refresh.selection import glob_match
 EMPTY_MAP = {"notebooks": {}, "sync_log": [], "config": {}}
 
 
+@pytest.mark.parametrize("name", ["CLAUDE.md", "ADDITIONAL.md", "README.md"])
+@pytest.mark.parametrize("exists", [False, True])
+@pytest.mark.parametrize("required_first", [False, True])
+def test_duplicate_overrides_preserve_requirements(tmp_path, name, exists, required_first):
+    from notebooklm_mcp.doc_refresh.validate import validate_discovery
+
+    repo = build_simple_repo(tmp_path)
+    target = repo / name
+    if exists:
+        _write(target, "Fictional documentation")
+    elif target.exists():
+        target.unlink()
+    manifest = load_manifest()
+    manifest["repo_overrides"][repo.name] = {
+        "extra_docs": [
+            {"path": name, "purpose": "First extra", "must_exist": required_first},
+            {"path": name, "purpose": "Second extra", "must_exist": not required_first},
+        ]
+    }
+    result = discover_repo(repo, manifest, EMPTY_MAP)
+    docs = [doc for doc in result.docs if doc.path == Path(name)]
+    assert len(docs) == 1
+    assert docs[0].required
+    assert docs[0].exists == exists
+    assert docs[0].tier == (1 if name == "README.md" else 2)
+    first_definition = next(
+        (d for tier in manifest["tiers"].values() for d in tier["documents"] if d["path"] == name),
+        {"purpose": "First extra"},
+    )
+    assert docs[0].purpose == first_definition["purpose"]
+    assert (Path(name) in {d.path for d in result.missing_required}) == (not exists)
+    errors = validate_discovery(result).errors
+    assert any(i.doc_path == Path(name) and i.rule == "required_doc_exists" for i in errors) == (not exists)
+
+
+@pytest.mark.parametrize("case", ["existing", "missing", "kitted", "tier1_duplicate"])
+def test_extra_docs_contribute_to_final_tier(tmp_path, case):
+    repo = build_kitted_repo(tmp_path) if case == "kitted" else build_simple_repo(tmp_path)
+    manifest = kitted_manifest() if case == "kitted" else load_manifest()
+    name = "README.md" if case == "tier1_duplicate" else "ADDITIONAL.md"
+    if case != "missing":
+        _write(repo / name, "Fictional extra documentation")
+    manifest["repo_overrides"].setdefault(repo.name, {})["extra_docs"] = [
+        {"path": name, "purpose": "Additional context"}
+    ]
+    result = discover_repo(repo, manifest, EMPTY_MAP)
+    expected = {"existing": Tier.COMPLEX, "missing": Tier.SIMPLE,
+                "kitted": Tier.KITTED, "tier1_duplicate": Tier.SIMPLE}[case]
+    assert result.tier == expected
+    assert len([doc for doc in result.docs if doc.path == Path(name)]) == 1
+
+
 @pytest.mark.parametrize("kind", ["case", "unicode", "symlink"])
 @pytest.mark.parametrize("ancestor_alias", [False, True])
 @pytest.mark.parametrize("entrypoint", ["discovery", "legacy"])

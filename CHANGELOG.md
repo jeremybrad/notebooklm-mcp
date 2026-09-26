@@ -52,6 +52,8 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- Preserve required-document flags across duplicate tier/override paths and
+  classify repository tiers from the final document set, including extras.
 - Reject repository-root case/Unicode aliases and root symlinks before override
   lookup, preserving exclusions and supported ancestor aliases. Keep malformed
   manifest diagnostics type-safe when invalid keys and values coexist.

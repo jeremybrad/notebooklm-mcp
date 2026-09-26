@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Optional
 
@@ -120,10 +121,14 @@ def discover_repo(
         repo_path, manifest, stored_hashes, exclusions, repo_name, commit_cache
     )
 
-    # Classify repo tier based on what exists
-    tier = _classify_tier(tier1_docs, tier2_docs, tier3_docs, tier3_root)
-
     all_docs = _dedupe_docs(tier1_docs + tier2_docs + tier3_docs + extra_docs)
+    # Classification describes the same consolidated items returned to callers.
+    tier = _classify_tier(
+        [doc for doc in all_docs if doc.tier == 1],
+        [doc for doc in all_docs if doc.tier == 2],
+        [doc for doc in all_docs if doc.tier == 3],
+        tier3_root,
+    )
 
     return DiscoveryResult(
         repo_path=repo_path,
@@ -417,15 +422,16 @@ def _discover_extra_docs(
 
 
 def _dedupe_docs(docs: list[DocItem]) -> list[DocItem]:
-    seen: set[str] = set()
-    unique: list[DocItem] = []
+    unique: dict[str, DocItem] = {}
     for doc in docs:
         key = normalize_relpath(doc.path)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(doc)
-    return unique
+        if key not in unique:
+            unique[key] = doc
+        elif doc.required and not unique[key].required:
+            # Keep the first item's tier and metadata, but never weaken a
+            # requirement declared by any definition of the same path.
+            unique[key] = replace(unique[key], required=True)
+    return list(unique.values())
 
 
 def _classify_tier(

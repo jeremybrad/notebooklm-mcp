@@ -235,3 +235,34 @@ Local validation: 223 passed and one filesystem-dependent skip on Python 3.11
 and 3.13; whole-package coverage 33%; wheel and sdist passed. Targeted manifest
 suite: 133 passed/one skip. Guarded subscription login preflight passed without
 inference. No hosted CI run is claimed; the inactive workflow remains unchanged.
+
+## Required overrides and final-document tier classification (2026-09-26)
+
+R13 accepted both R12 repairs and reported no further privacy/containment finding,
+but identified two P2 correctness defects: duplicate paths lose requiredness
+(R13-N1), and existing extra documents are omitted from tier classification
+(R13-N2). Both were reproduced locally using synthetic repositories. Jeremy
+replied “Great plan - I approve!” to these repairs and up to two full-scope Codex
+subscription reviews (14–15), at most 30 minutes each/$0 API total, including
+necessary same-scope repairs from the first review. Observed reply time
+2026-09-26T03:02:07Z, not asserted message timestamp; approval5842604918.
+All thirteen earlier reviews remain. A clean first pass ends review work; stops
+remain for material scope/base changes, incomplete results, repeated/reopened
+defects or repair regressions, consequential disagreement, or blockers/further
+review need after the second pass. No merge or live activation is authorized.
+
+Seven of sixteen new regression/control cases failed before repair. Duplicate
+paths now preserve the first item's tier/metadata and combine requiredness,
+without weakening an earlier required flag. Classification uses the final
+consolidated items, including extras. Tests cover missing/existing duplicate
+paths, both requirement orders, validation errors, canonical tier/metadata,
+existing versus missing extras, tier-1 duplicates and kitted precedence.
+Changes stay in existing discovery/tests/interface/changelog/receipt files.
+Exact local validation and independent review evidence are on PR #5; this
+receipt alone does not establish readiness. No runtime wiring, source upload,
+authentication or scheduler changes.
+
+Local validation: 239 passed and one filesystem-dependent skip on Python 3.11
+and 3.13; whole-package coverage 34%; wheel and sdist passed. Targeted manifest
+suite: 149 passed/one skip. Guarded ChatGPT subscription login preflight passed
+without inference. The inactive hosted workflow remains unchanged.

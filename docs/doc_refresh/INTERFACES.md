@@ -72,6 +72,11 @@ raise `ManifestError`; symlinked ancestors remain supported. This check does not
 lowercase names or merge identities on case-sensitive filesystems. Malformed
 manifests report validation errors in validator order, without comparing mixed
 key types in diagnostic paths.
+Duplicate document paths retain the first item's tier and metadata, while
+requiredness is the union of all definitions: an optional entry cannot weaken
+any `must_exist: true` requirement. Repository tier classification uses the
+final consolidated documents, including existing extra documents. Missing
+extras do not promote a tier; existing tier-3 documents retain kitted precedence.
 
 Discovery captures manifest bytes once for parsing, validation and its provenance
 hash. A supplied mapping gets a byte hash only when it matches the captured file
