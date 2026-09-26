@@ -2,13 +2,14 @@
 Manifest loading and Tier 3 path resolution.
 """
 
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
-from .hashing import compute_file_hash
+from .hashing import HASH_PREFIX_LENGTH, compute_file_hash
 from .schema import ManifestError, SCHEMA_ID, SCHEMA_PATH, validate_canonical_docs
 from .selection import get_exclusions, get_extra_docs, path_is_contained
 
@@ -196,14 +197,24 @@ def load_manifest(
     validate: bool = True,
 ) -> dict[str, Any]:
     """Load the canonical docs manifest YAML and optionally schema-validate it."""
+    loaded, _ = _load_manifest_snapshot(manifest_path, validate=validate)
+    return loaded
+
+
+def _load_manifest_snapshot(
+    manifest_path: Optional[Path] = None,
+    *,
+    validate: bool = True,
+) -> tuple[dict[str, Any], str]:
+    """Parse and hash the same captured bytes, even if the file later changes."""
     path = manifest_path or DEFAULT_MANIFEST_PATH
-    with open(path, "r", encoding="utf-8") as handle:
-        loaded = yaml.safe_load(handle)
+    raw = path.read_bytes()
+    loaded = yaml.safe_load(raw.decode("utf-8"))
     if validate:
         validate_canonical_docs(loaded)
     if not isinstance(loaded, dict):
         raise ManifestError("canonical_docs manifest must be a mapping")
-    return loaded
+    return loaded, hashlib.sha256(raw).hexdigest()[:HASH_PREFIX_LENGTH]
 
 
 def load_notebook_map(map_path: Optional[Path] = None) -> dict[str, Any]:

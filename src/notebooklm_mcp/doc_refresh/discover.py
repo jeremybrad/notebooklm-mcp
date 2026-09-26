@@ -10,21 +10,22 @@ Scans a repository to:
 
 from __future__ import annotations
 
+import copy
 import subprocess
 from pathlib import Path
 from typing import Any, Optional
 
 from .manifest import (
     DEFAULT_MANIFEST_PATH,
+    _load_manifest_snapshot,
     get_alternate_names,
     get_stored_hashes,
     get_tier_docs,
-    load_manifest,
     load_notebook_map,
-    manifest_content_hash,
     resolve_tier3_root,
 )
 from .models import DiscoveryResult, DocItem, Tier
+from .schema import validate_canonical_docs
 from .selection import (
     get_exclusions,
     get_extra_docs,
@@ -47,20 +48,26 @@ def discover_repo(
 
     Args:
         repo_path: Absolute path to the repository root
-        manifest: Pre-loaded manifest (loads default if None)
+        manifest: Pre-loaded manifest, validated before selection (default if None)
         notebook_map: Pre-loaded notebook map (loads default if None)
-        manifest_path: Optional path used only for manifest byte hashing
+        manifest_path: Manifest to load, or compare with a supplied mapping for provenance
 
     Returns:
         DiscoveryResult with tier classification and discovered docs
     """
     loaded_from = manifest_path or DEFAULT_MANIFEST_PATH
-    byte_provenance = manifest is None
+    manifest_hash = None
     if manifest is None:
-        manifest = load_manifest(loaded_from)
-    elif manifest_path is not None:
-        # Only attach file-byte provenance when it describes this exact selection.
-        byte_provenance = load_manifest(manifest_path) == manifest
+        manifest, manifest_hash = _load_manifest_snapshot(loaded_from)
+    else:
+        # A caller can alter a previously loaded mapping. Validate an owned copy
+        # before exclusions or any repository selection can consume it.
+        manifest = copy.deepcopy(manifest)
+        validate_canonical_docs(manifest)
+        if manifest_path is not None:
+            captured, captured_hash = _load_manifest_snapshot(manifest_path)
+            if captured == manifest:
+                manifest_hash = captured_hash
     if notebook_map is None:
         notebook_map = load_notebook_map()
 
@@ -103,11 +110,6 @@ def discover_repo(
 
     all_docs = _dedupe_docs(tier1_docs + tier2_docs + tier3_docs + extra_docs)
 
-    try:
-        manifest_hash = manifest_content_hash(loaded_from) if byte_provenance else None
-    except OSError:
-        manifest_hash = None
-
     return DiscoveryResult(
         repo_path=repo_path,
         repo_name=repo_name,
@@ -140,7 +142,7 @@ def _lookup_last_commit(
         return None
     try:
         completed = subprocess.run(
-            ["git", "-C", str(repo_path), "log", "-1", "--format=%H", "--", relpath],
+            ["git", "--literal-pathspecs", "-C", str(repo_path), "log", "-1", "--format=%H", "--", relpath],
             capture_output=True,
             text=True,
             timeout=2,
@@ -209,7 +211,9 @@ def _expand_scan(
         except OSError:
             continue
         try:
-            rel = match.relative_to(repo_path.resolve()).as_posix()
+            # glob() yields the supplied root spelling, including ancestor aliases.
+            # Containment below checks the physical target separately.
+            rel = match.relative_to(repo_path).as_posix()
         except ValueError:
             continue
         if not path_is_contained(repo_path, rel):

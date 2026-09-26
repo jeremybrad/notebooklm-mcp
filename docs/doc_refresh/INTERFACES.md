@@ -54,7 +54,17 @@
 
 Validated against `src/notebooklm_mcp/doc_refresh/canonical_docs.schema.json`
 (JSON Schema draft 2020-12, schema id `c021.canonical_docs.v1`).
-`load_manifest()` fails closed on malformed files.
+`load_manifest()` validates files by default. `discover_repo()` also validates
+caller-supplied mappings before selection, including mappings loaded with the
+loader's explicit `validate=False` option. Invalid privacy entries raise
+`ManifestError`; they are not silently discarded.
+
+Discovery captures manifest bytes once for parsing, validation and its provenance
+hash. A supplied mapping gets a byte hash only when it matches the captured file
+named by `manifest_path`; otherwise the hash is unknown (`None`). A later disk
+edit does not change the hash attached to the earlier selection. The standalone
+`manifest_content_hash()` helper still hashes the file at the time it is called.
+Per-document Git last-touch lookup treats filenames as literal paths.
 
 Include/exclude precedence:
 
@@ -69,7 +79,8 @@ Include/exclude precedence:
    case-sensitive. Identity lookup errors omit candidates; missing suffixes retain
    ordinary missing-required reporting.
 4. Directory entries with `scan_pattern` expand to matching files, then the
-   same containment and exclusion rules apply to each file.
+   same containment and exclusion rules apply to each file. An alias in the
+   repository root's ancestors does not change the discovered relative paths.
 
 ```yaml
 schema: "c021.canonical_docs.v1"

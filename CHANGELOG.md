@@ -52,6 +52,9 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- WOR-186: validate supplied manifests before selection, bind provenance hashes
+  to captured manifest bytes, retain scans through root ancestor aliases, and
+  use literal Git paths for per-document last-touch metadata.
 - WOR-186: literal basename exclusions compare resolved filesystem identities
   directly, preserving privacy exclusions beneath bracket-containing directories.
 - Doc sync replacement flow now uses a safer add-before-delete order to avoid source loss if replacement fails.

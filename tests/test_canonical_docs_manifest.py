@@ -5,6 +5,9 @@ WOR-186: canonical_docs schema, exclusions, containment, synthetic fixtures.
 from __future__ import annotations
 
 import copy
+import hashlib
+import importlib
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -25,6 +28,92 @@ from notebooklm_mcp.doc_refresh.schema import SCHEMA_ID
 from notebooklm_mcp.doc_refresh.selection import glob_match
 
 EMPTY_MAP = {"notebooks": {}, "sync_log": [], "config": {}}
+
+
+@pytest.mark.parametrize("per_repo", [False, True])
+@pytest.mark.parametrize("exclusions", [["README.md"], [{"patern": "README.md", "reason": "typo"}]])
+def test_supplied_manifest_rejects_malformed_privacy_rules(tmp_path, per_repo, exclusions):
+    repo = build_simple_repo(tmp_path)
+    manifest = load_manifest()
+    target = manifest
+    if per_repo:
+        target = manifest["repo_overrides"].setdefault(repo.name, {})
+    target["exclusions"] = exclusions
+    with pytest.raises(ManifestError):
+        discover_repo(repo, manifest=manifest, notebook_map=EMPTY_MAP)
+
+
+def test_scans_preserve_documents_and_privacy_through_ancestor_alias(tmp_path):
+    parent = tmp_path.resolve() / "real"
+    parent.mkdir()
+    repo = build_complex_repo(parent)
+    alias = tmp_path / "alias"
+    alias.symlink_to(parent, target_is_directory=True)
+    _write(repo / "10_docs" / "public.md", "# Synthetic public\n")
+    (repo / "10_docs" / "linked.md").symlink_to(repo / "10_docs" / "private" / "notes.md")
+    real = _existing(discover_repo(repo, notebook_map=EMPTY_MAP))
+    aliased = _existing(discover_repo(alias / repo.name, notebook_map=EMPTY_MAP))
+    assert "10_docs/public.md" in real
+    assert aliased == real
+    assert not {"10_docs/private/notes.md", "10_docs/linked.md", ".env"} & aliased
+
+
+@pytest.mark.parametrize("supplied", [False, True])
+def test_manifest_hash_describes_captured_selection_bytes(tmp_path, monkeypatch, supplied):
+    module = importlib.import_module("notebooklm_mcp.doc_refresh.discover")
+    repo = build_simple_repo(tmp_path)
+    manifest_a = load_manifest()
+    manifest_b = copy.deepcopy(manifest_a)
+    manifest_b["exclusions"].append({"pattern": "README.md", "reason": "new exclusion"})
+    raw_a = yaml.safe_dump(manifest_a).encode("utf-8")
+    raw_b = yaml.safe_dump(manifest_b).encode("utf-8")
+    path = tmp_path / "manifest.yaml"
+    path.write_bytes(raw_a)
+    original = module._discover_tier_docs
+
+    def replace_manifest(*args, **kwargs):
+        path.write_bytes(raw_b)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "_discover_tier_docs", replace_manifest)
+    result = discover_repo(
+        repo, manifest=manifest_a if supplied else None,
+        manifest_path=path, notebook_map=EMPTY_MAP,
+    )
+    assert "README.md" in _existing(result)
+    assert result.manifest_content_hash == hashlib.sha256(raw_a).hexdigest()[:12]
+    assert result.manifest_content_hash != hashlib.sha256(raw_b).hexdigest()[:12]
+
+
+def test_last_commit_uses_literal_document_path(tmp_path):
+    repo = build_simple_repo(tmp_path)
+
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
+
+    git("init", "-q")
+    git("config", "user.name", "Synthetic Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "core.hooksPath", "/dev/null")
+    _write(repo / "docs" / "guide*.md", "# Synthetic literal\n")
+    git("add", "--all")
+    git("-c", "commit.gpgsign=false", "commit", "-qm", "literal document")
+    literal_commit = git("rev-parse", "HEAD")
+    _write(repo / "docs" / "guide-public.md", "# Synthetic sibling\n")
+    git("add", "--all")
+    git("-c", "commit.gpgsign=false", "commit", "-qm", "sibling document")
+    sibling_commit = git("rev-parse", "HEAD")
+    manifest = load_manifest()
+    manifest["repo_overrides"][repo.name] = {
+        "extra_docs": [
+            {"path": "docs/guide*.md", "purpose": "literal file"},
+            {"path": "docs/guide-public.md", "purpose": "matching sibling"},
+        ]
+    }
+    result = discover_repo(repo, manifest=manifest, notebook_map=EMPTY_MAP)
+    commits = {d.path.as_posix(): d.last_commit for d in result.docs}
+    assert commits["docs/guide*.md"] == literal_commit
+    assert commits["docs/guide-public.md"] == sibling_commit
 
 
 def _write(path: Path, text: str) -> None:
@@ -290,7 +379,7 @@ def test_tier3_absolute_doc_is_omitted(tmp_path, inside):
 def test_in_memory_manifest_has_no_false_byte_provenance(tmp_path):
     repo = build_simple_repo(tmp_path)
     manifest = copy.deepcopy(load_manifest())
-    manifest["repo_overrides"][repo.name] = {"extra_docs": [{"path": "EXTRA.md"}]}
+    manifest["repo_overrides"][repo.name] = {"extra_docs": [{"path": "EXTRA.md", "purpose": "synthetic selection fixture"}]}
     assert discover_repo(repo, manifest, EMPTY_MAP).manifest_content_hash is None
 
 
@@ -300,7 +389,7 @@ def test_dot_segment_alias_cannot_bypass_exclusions(tmp_path, alias):
     _write(repo / "docs/restricted.md", "synthetic excluded")
     (repo / "docs/sub").mkdir()
     manifest = copy.deepcopy(load_manifest())
-    manifest["repo_overrides"][repo.name] = {"exclusions": [{"pattern": "docs/restricted.md"}], "extra_docs": [{"path": alias}]}
+    manifest["repo_overrides"][repo.name] = {"exclusions": [{"pattern": "docs/restricted.md", "reason": "synthetic privacy fixture"}], "extra_docs": [{"path": alias, "purpose": "synthetic selection fixture"}]}
     assert not any(d.path.name == "restricted.md" for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
 
 
@@ -332,8 +421,8 @@ def test_filesystem_alias_cannot_select_excluded_file(tmp_path, alias):
         pytest.skip("requires filesystem case aliases")
     manifest = copy.deepcopy(load_manifest())
     manifest["repo_overrides"][repo.name] = {
-        "exclusions": [{"pattern": "docs/restricted.md"}],
-        "extra_docs": [{"path": alias}],
+        "exclusions": [{"pattern": "docs/restricted.md", "reason": "synthetic privacy fixture"}],
+        "extra_docs": [{"path": alias, "purpose": "synthetic selection fixture"}],
     }
     result = discover_repo(repo, manifest, EMPTY_MAP)
     assert not any((repo / d.path).is_file() and (repo / d.path).samefile(repo / "docs/restricted.md") for d in result.docs)
@@ -348,8 +437,8 @@ def test_filesystem_alias_exclusion_covers_canonical_file(tmp_path, excluded):
         pytest.skip("requires filesystem case aliases")
     manifest = copy.deepcopy(load_manifest())
     manifest["repo_overrides"][repo.name] = {
-        "exclusions": [{"pattern": excluded}],
-        "extra_docs": [{"path": "docs/restricted.md"}],
+        "exclusions": [{"pattern": excluded, "reason": "synthetic privacy fixture"}],
+        "extra_docs": [{"path": "docs/restricted.md", "purpose": "synthetic selection fixture"}],
     }
     assert not any(d.path == Path("docs/restricted.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
 
@@ -363,7 +452,7 @@ def test_exact_filesystem_identity_preserves_safe_and_missing_paths(tmp_path):
     (repo / "alias").symlink_to(repo / "docs", target_is_directory=True)
     assert not path_is_contained(repo, "alias/Allowed.md")
     manifest = copy.deepcopy(load_manifest())
-    manifest["repo_overrides"][repo.name] = {"extra_docs": [{"path": "docs/Allowed.md"}]}
+    manifest["repo_overrides"][repo.name] = {"extra_docs": [{"path": "docs/Allowed.md", "purpose": "synthetic selection fixture"}]}
     assert any(d.path == Path("docs/Allowed.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
 
 
@@ -375,8 +464,8 @@ def test_case_distinct_files_remain_distinct_where_supported(tmp_path):
     _write(repo / "docs/LOWER.md", "synthetic allowed")
     manifest = copy.deepcopy(load_manifest())
     manifest["repo_overrides"][repo.name] = {
-        "exclusions": [{"pattern": "docs/lower.md"}],
-        "extra_docs": [{"path": "docs/LOWER.md"}],
+        "exclusions": [{"pattern": "docs/lower.md", "reason": "synthetic privacy fixture"}],
+        "extra_docs": [{"path": "docs/LOWER.md", "purpose": "synthetic selection fixture"}],
     }
     assert path_is_contained(repo, "docs/LOWER.md")
     assert any(d.path == Path("docs/LOWER.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
@@ -394,8 +483,8 @@ def test_normalization_alias_cannot_select_excluded_file(tmp_path):
         pytest.skip("requires filesystem Unicode normalization aliases")
     manifest = copy.deepcopy(load_manifest())
     manifest["repo_overrides"][repo.name] = {
-        "exclusions": [{"pattern": "docs/" + actual}],
-        "extra_docs": [{"path": "docs/" + alternate}],
+        "exclusions": [{"pattern": "docs/" + actual, "reason": "synthetic privacy fixture"}],
+        "extra_docs": [{"path": "docs/" + alternate, "purpose": "synthetic selection fixture"}],
     }
     assert not any((repo / d.path).is_file() and (repo / d.path).samefile(alias) for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
 
@@ -407,10 +496,10 @@ def test_filesystem_identity_applies_to_scan_alternates_and_filter(tmp_path):
     _write(repo / "docs/restricted.md", "synthetic excluded")
     if not (repo / "DOCS/RESTRICTED.md").exists():
         pytest.skip("requires filesystem case aliases")
-    excluded = [{"pattern": "DOCS/restricted.md"}]
+    excluded = [{"pattern": "DOCS/restricted.md", "reason": "synthetic privacy fixture"}]
     assert _expand_scan(repo, repo.name, {"scan_pattern": "docs/*.md"}, 2, {}, excluded, {}) == []
     assert _expand_scan(repo, repo.name, {"scan_pattern": "DOCS/*.md"}, 2, {}, [], {}) == []
-    assert _discover_one_def(repo, repo.name, {"path": "docs/RESTRICTED.md", "alternate_names": ["docs/restricted.md"]}, 2, {}, excluded, {}) == []
+    assert _discover_one_def(repo, repo.name, {"path": "docs/RESTRICTED.md", "alternate_names": ["docs/restricted.md"], "purpose": "synthetic selection fixture"}, 2, {}, excluded, {}) == []
     assert filter_contained_relpaths(repo, ["docs/restricted.md", "docs/RESTRICTED.md"], excluded) == []
 
 
@@ -432,8 +521,8 @@ def test_literal_glob_character_filename_still_checks_identity(tmp_path):
     assert not path_is_contained(repo, "docs/RESTRICTED?.md")
     manifest = copy.deepcopy(load_manifest())
     manifest["repo_overrides"][repo.name] = {
-        "exclusions": [{"pattern": "docs/restricted?.md"}],
-        "extra_docs": [{"path": "docs/RESTRICTED?.md"}],
+        "exclusions": [{"pattern": "docs/restricted?.md", "reason": "synthetic privacy fixture"}],
+        "extra_docs": [{"path": "docs/RESTRICTED?.md", "purpose": "synthetic selection fixture"}],
     }
     assert not any(d.path == Path("docs/RESTRICTED?.md") for d in discover_repo(repo, manifest, EMPTY_MAP).docs)
 
@@ -463,7 +552,7 @@ def test_basename_exclusion_uses_candidate_parent_identity(tmp_path, parent):
     _write(repo / "RESTRICTED.md", "unrelated synthetic root file")
     rel = parent + "/restricted.md"
     assert is_excluded(rel, ["RESTRICTED.md"], repo)
-    assert filter_contained_relpaths(repo, [rel], [{"pattern": "RESTRICTED.md"}]) == []
+    assert filter_contained_relpaths(repo, [rel], [{"pattern": "RESTRICTED.md", "reason": "synthetic privacy fixture"}]) == []
 
 
 def test_basename_unicode_alias_exclusion_uses_candidate_parent(tmp_path):
@@ -502,7 +591,7 @@ def test_literal_basename_exclusion_survives_glob_characters_in_parent(tmp_path,
     manifest = copy.deepcopy(load_manifest())
     manifest["repo_overrides"][repo.name] = {
         "exclusions": [{"pattern": "RESTRICTED.md", "reason": "synthetic privacy rule"}],
-        "extra_docs": [{"path": restricted}, {"path": allowed}],
+        "extra_docs": [{"path": restricted, "purpose": "synthetic selection fixture"}, {"path": allowed, "purpose": "synthetic selection fixture"}],
     }
     result = discover_repo(repo, manifest=manifest, notebook_map=EMPTY_MAP)
     assert restricted not in _paths(result)

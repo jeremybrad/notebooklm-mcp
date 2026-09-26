@@ -87,3 +87,32 @@ source discovery and live I/O; its WOR-788/789 follow-ups remain separate.
 Exact test/build results, independent review and readiness are recorded on PR #5;
 this receipt alone is not clearance. No live uploads, credentials, scheduler or
 canonical-checkout runtime changes are included.
+
+## Full-scope R8 repairs (2026-09-26, separately authorized)
+
+R7 completed without repair findings. R8 restored a complete primary assessment
+after a historical capture gap and identified R8-N1 (P1 malformed supplied
+manifests), R8-N2 (P2 directory scans through ancestor aliases), reopened F3
+(P2 manifest byte-provenance race), and R8-N3 (P2 Git pathspec interpretation).
+All four reproduced locally using synthetic fixtures. Jeremy replied
+“Authorize repairs and one review” to the four-item plan and exactly one
+full-scope Codex subscription review, at most 30 minutes and $0 API spend
+(reply observed 2026-09-26T01:43:16Z, not asserted message timestamp).
+All eight earlier rounds and original finding identities/severities are retained.
+
+Eight regression cases failed before repair. Discovery now validates an owned
+copy of supplied mappings before selection. Manifest loading captures one byte
+sequence for parsing, validation and hashing; supplied mappings receive that
+hash only when they match the captured parse. Scan matches are made relative
+to the same lexical root used by glob, with containment still checked separately.
+Git last-touch lookup uses literal pathspec mode.
+
+The prior case/Unicode/path fixtures omitted schema-required purpose/reason
+metadata. Those fixtures now satisfy the existing schema so their original
+selection assertions continue to execute; malformed-input tests still require
+refusal. Full tests pass on Python 3.11 and 3.13: 148 passed, one
+filesystem-dependent skip. Coverage command passes with 31% whole-package
+coverage; wheel and source-distribution builds pass. Scope: discover.py,
+manifest.py, their existing test file, INTERFACES.md, this receipt and changelog.
+Independent R9 review and final readiness remain separate evidence on PR #5.
+No live sources, uploads, credentials, scheduling or canonical runtime changes.
