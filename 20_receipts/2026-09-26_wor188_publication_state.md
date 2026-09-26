@@ -35,6 +35,13 @@ test connects the existing selector to this state machine. Final suite/build
 results and independent-review accounting are recorded on the PR at its exact
 head; no test count in this receipt substitutes for those results.
 
+Independent review R1 identified PSTATE-F1 (P2): retained artifacts could lose
+their source association through an inconsistent persisted map. Two regression
+cases reproduced acceptance before repair, then passed after whole-map validation
+required each artifact to retain the notebook's stable source ID. Historical
+artifact hashes may still differ from the current source hash. Review history
+and the repair re-review remain append-only on the PR.
+
 POSIX directory flock serializes cooperating callers without a new lock file.
 Atomic replace and before-commit byte checks detect observed conflicts; arbitrary
 noncooperating writes cannot be made safe by advisory locking. Activation must

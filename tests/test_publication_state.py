@@ -395,3 +395,23 @@ def test_accepted_git_bundle_connects_to_state_machine(source_repo, managed):
     publish(store, 'repo', generated.bundle, remote)
     assert parse_document(remote.raw).text == generated.bundle.text
     assert freshness(store, {'repo': generated.receipt['bundle_sha256']})['all_docs_verified']
+
+
+@pytest.mark.parametrize('changed_source', [None, 'different-source'])
+def test_persisted_artifact_cannot_lose_or_change_source_association(managed, changed_source):
+    store, remote = managed
+    a = bundle()
+    publish(store, 'repo', a, remote)
+    record_observation(store, 'repo', a.sha256, 'source-A', 'citation-A')
+    record_observation(store, 'repo', a.sha256, 'source-A', 'image-A', artifact_id='image-A')
+    data = store.read().data
+    if changed_source is None:
+        data['notebooks']['repo'][KEY]['notebook'] = None
+    else:
+        data['notebooks']['repo'][KEY]['notebook']['source_id'] = changed_source
+    store.path.write_text(yaml.safe_dump(data))
+    before, reads, writes = store.path.read_bytes(), remote.reads, remote.writes
+    with pytest.raises(StateError, match='Artifact source association'):
+        publish(store, 'repo', a, remote)
+    assert store.path.read_bytes() == before
+    assert (remote.reads, remote.writes) == (reads, writes)

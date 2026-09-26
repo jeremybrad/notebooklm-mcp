@@ -126,6 +126,8 @@ def validate_map(data: Any) -> None:
             _hash(evidence['sha256'])
             _label(evidence['source_id'])
             _label(evidence['evidence'])
+            if notebook is None or evidence['source_id'] != notebook['source_id']:
+                raise StateError('Artifact source association is inconsistent')
 
 
 class _Loader(yaml.SafeLoader):
