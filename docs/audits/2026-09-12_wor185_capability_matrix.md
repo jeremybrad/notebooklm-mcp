@@ -13,6 +13,11 @@ mechanism for programmatically refreshing NotebookLM sources?* Linear
 [#5](https://github.com/jeremybrad/notebooklm-mcp/pull/5) is not stacked on
 this branch.
 
+> Decision update (2026-09-25): Jeremy approved the stable-Drive design and offline
+> pilot in [DRIVE_PILOT.md](../doc_refresh/DRIVE_PILOT.md). The recommendation
+> below is preserved as the September 12 assessment, not the current planned
+> nightly publication path. This does not establish live Drive/NotebookLM health.
+
 ## Preferred path
 
 **Reuse the existing consumer MCP write surface** (`existing_mcp_text_sources`).

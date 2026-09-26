@@ -121,7 +121,8 @@ def is_excluded(
             try:
                 actual = _entry_spelling(repo_path, relpath)
                 literal = normalize_relpath(pattern)
-                if "/" not in literal and not any(char in literal for char in "*?["):
+                literal_basename = "/" not in literal and not any(char in literal for char in "*?[")
+                if literal_basename:
                     # Basename exclusions apply at every depth: resolve aliases
                     # beside this candidate, never against an unrelated root file.
                     literal = (Path(actual).parent / literal).as_posix()
@@ -130,7 +131,10 @@ def is_excluded(
                 actual_pattern = _entry_spelling(repo_path, literal)
             except (OSError, ValueError, RuntimeError):
                 return True
-            if glob_match(actual, actual_pattern):
+            # The candidate's parent is a literal filesystem spelling, not a
+            # pattern. Feeding it back into glob matching reinterprets brackets.
+            matches = (actual == actual_pattern) if literal_basename else glob_match(actual, actual_pattern)
+            if matches:
                 return True
     return False
 

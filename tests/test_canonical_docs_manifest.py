@@ -451,7 +451,7 @@ def test_exclusion_identity_does_not_walk_symlink_target(tmp_path, monkeypatch):
     assert is_excluded("README.md", ["alias/private.md"], repo)
 
 
-@pytest.mark.parametrize("parent", ["docs", "docs/deep"])
+@pytest.mark.parametrize("parent", ["docs", "docs/deep", "docs[1]", "docs[ab]/deep[2]", "docs?", "docs*"])
 def test_basename_exclusion_uses_candidate_parent_identity(tmp_path, parent):
     from notebooklm_mcp.doc_refresh.selection import filter_contained_relpaths, is_excluded
 
@@ -488,3 +488,22 @@ def test_basename_identity_preserves_wildcards_and_missing_patterns(tmp_path):
     assert not is_excluded("docs/restricted.md", ["*.MD", "missing.md"], repo)
     assert is_excluded("docs/restricted.md", ["*.md"], repo)
     assert is_excluded("docs/restricted.md", ["docs/restricted.md"], repo)
+
+
+@pytest.mark.parametrize("parent", ["docs[1]", "docs[ab]/deep[2]"])
+def test_literal_basename_exclusion_survives_glob_characters_in_parent(tmp_path, parent):
+    repo = build_simple_repo(tmp_path)
+    restricted = f"{parent}/restricted.md"
+    allowed = f"{parent}/allowed.md"
+    _write(repo / restricted, "synthetic excluded text")
+    _write(repo / allowed, "synthetic allowed text")
+    if not (repo / parent / "RESTRICTED.md").exists():
+        pytest.skip("requires filesystem case aliases")
+    manifest = copy.deepcopy(load_manifest())
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": "RESTRICTED.md", "reason": "synthetic privacy rule"}],
+        "extra_docs": [{"path": restricted}, {"path": allowed}],
+    }
+    result = discover_repo(repo, manifest=manifest, notebook_map=EMPTY_MAP)
+    assert restricted not in _paths(result)
+    assert allowed in _existing(result)

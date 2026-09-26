@@ -13,6 +13,9 @@ Version numbers in pyproject.toml (no git tags).
   path and symlink containment, `extra_docs` consumption, AGENTS.md and
   PROJECT_PRIMER.md includes, and synthetic three-repo fixtures.
   Schema id `c021.canonical_docs.v1`. Adds runtime `jsonschema>=4.18`.
+- WOR-183 / WOR-187 / WOR-188: approved stable Google Docs publication design and
+  synthetic offline bundle/update/readback pilot. Real source selection, uploads
+  and scheduler integration remain gated; see `docs/doc_refresh/DRIVE_PILOT.md`.
 - WOR-185 capability matrix for NotebookLM / Gemini notebooks / Drive / MCP
   refresh paths (`docs/audits/2026-09-12_wor185_capability_matrix.md` plus
   `docs/audits/wor185_capability_matrix.json`). Preferred path is the
@@ -49,6 +52,8 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- WOR-186: literal basename exclusions compare resolved filesystem identities
+  directly, preserving privacy exclusions beneath bracket-containing directories.
 - Doc sync replacement flow now uses a safer add-before-delete order to avoid source loss if replacement fails.
 - Artifact completion polling now validates completion against the artifact IDs created in the same run.
 - Cookie parsing now handles headers with optional whitespace after `;`.

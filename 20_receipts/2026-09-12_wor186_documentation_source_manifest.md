@@ -60,3 +60,30 @@ Guarded Grok supplied an implementation-only proposal (not independent clearance
 Round 5 retained F4: a literal basename exclusion `RESTRICTED.md` was resolved against the repository root, so the macOS alias of `docs/restricted.md` remained selectable. Jeremy's reply “Approved” was observed at 23:41:06 UTC in response to the pending bounded decision: resolve literal basename identity beside each candidate, preserve wildcard/case-sensitive/containment behavior, and permit exactly one independent repair review with a 15-minute limit and $0 metered usage. Stop if F4 persists, an equal/higher regression appears, scope expands, or another review is needed. The observation time is not an asserted message timestamp.
 
 Nested, deeper-nested and Unicode-normalization alias fixtures failed on the prior implementation. Literal basename exclusions now resolve beside the candidate's actual parent; an unrelated root file cannot control that identity. Wildcards and root-relative exclusions retain existing behavior. The full synthetic suite passes: 112 passed, 1 filesystem-dependent skip. All five prior review rounds and findings remain in the append-only PR record; this change supplies no independent clearance. No live uploads, source processing, authentication or scheduler changes occurred.
+
+
+## Literal parent spelling repair (2026-09-26, separately authorized)
+
+Round 6 retained F4: the literal parent in `docs[1]/restricted.md` was
+reinterpreted as a glob when matching the resolved `RESTRICTED.md` basename.
+Jeremy replied “I approve - please proceed” to Betty's explicit bounded request
+(observed 2026-09-26T01:09:42Z, not asserted message timestamp): repair this
+defect, integrate current main, and run one Grok repair review at medium effort
+with up to 60 minutes; stop if the defect persists after repair or scope expands.
+All six earlier reviews and findings remain in the append-only PR #5 history.
+
+Four regression cases failed before the repair: direct exclusion checks and
+actual extra_docs discovery under bracket-containing and nested bracket-containing
+parents. They now pass. Resolved literal basename paths use equality; explicit
+glob patterns keep their previous matching semantics. Ordinary, question-mark
+and asterisk parents, Unicode/case aliases, missing exclusions, allowed siblings
+and existing symlink/containment regressions remain covered. No real repository
+documentation or private payload was selected for these tests.
+
+Integrated main at `546688c43495d403ee2336bfbd0891a4e60b7e24` (PR #7's
+already-reviewed offline pilot), retaining both changelog additions. The only
+merge conflict was CHANGELOG.md. The inherited pilot stays disconnected from
+source discovery and live I/O; its WOR-788/789 follow-ups remain separate.
+Exact test/build results, independent review and readiness are recorded on PR #5;
+this receipt alone is not clearance. No live uploads, credentials, scheduler or
+canonical-checkout runtime changes are included.
