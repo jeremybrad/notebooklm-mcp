@@ -42,6 +42,7 @@ notebooklm-sync = "notebooklm_mcp.sync_cli:main"
 generate-project-primer = "notebooklm_mcp.primer_gen.cli:main"
 doc-refresh = "notebooklm_mcp.doc_refresh.runner:main"
 repo-doc-bundle = "notebooklm_mcp.doc_refresh.source_bundle:main"
+repo-doc-publish = "notebooklm_mcp.doc_refresh.publication_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/notebooklm_mcp"]

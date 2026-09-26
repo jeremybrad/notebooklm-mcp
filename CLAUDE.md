@@ -2,6 +2,13 @@
 
 ## SESSION RECOVERY (Read First After Compaction)
 
+**Repo-document publisher work:** start with [PUBLISHER.md](docs/doc_refresh/PUBLISHER.md).
+Use the offline plan with explicit repo/commit/map/receipt paths. Production OAuth
+is unconfigured. Do not apply the cookie-recovery advice below to this path:
+the old installed writer must be quiesced before shared auth repair or activation.
+No installation, canonical pull, credential change or scheduling follows from a
+publisher code merge. Current ownership and remaining activation work: WOR-188/189.
+
 **Auth dead?** Run `notebooklm-mcp-auth`, restart Claude Code, verify with `notebook_list()`. See [Troubleshooting](./docs/TROUBLESHOOTING.md) for full recovery steps.
 
 ---
@@ -58,6 +65,8 @@ src/notebooklm_mcp/
 - `notebooklm-mcp-auth` - CLI for extracting tokens (requires closing Chrome)
 - `notebooklm-sync` - CLI for deterministic doc syncing with receipts
 - `doc-refresh` - Scheduled doc refresh engine (used by launchd nightly job)
+- `repo-doc-publish` - Explicit documentation publisher; offline plan/status work,
+  live modes refuse without a separately reviewed credential-provider integration
 
 ### CLI Tools
 
