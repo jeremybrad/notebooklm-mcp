@@ -7,6 +7,12 @@ Version numbers in pyproject.toml (no git tags).
 
 ## [Unreleased]
 
+### Fixed
+- WOR-788 / WOR-789: require explicit inline-suggestions Docs responses for
+  planning/readback and reject empty or sourceless publication bundles. Document
+  intentional U+000B refusal accurately; preserve the three PR #7 review findings.
+  Offline helpers only; no live transport or scheduling activation.
+
 ### Added
 - WOR-186 documentation source manifest: JSON Schema draft 2020-12 for
   `canonical_docs.yaml`, default privacy/build exclusions with fail-closed
