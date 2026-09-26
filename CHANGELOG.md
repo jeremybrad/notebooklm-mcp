@@ -8,6 +8,9 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-183 / WOR-187 / WOR-188: approved stable Google Docs publication design and
+  synthetic offline bundle/update/readback pilot. Real source selection, uploads
+  and scheduler integration remain gated; see `docs/doc_refresh/DRIVE_PILOT.md`.
 - WOR-185 capability matrix for NotebookLM / Gemini notebooks / Drive / MCP
   refresh paths (`docs/audits/2026-09-12_wor185_capability_matrix.md` plus
   `docs/audits/wor185_capability_matrix.json`). Preferred path is the
