@@ -133,3 +133,9 @@ notebooklm-sync --all --apply --changed-only
 make health
 make verify
 ```
+## Offline source bundles
+
+`repo-doc-bundle --repo /path/to/REPO REVISION --output /path/to/artifacts`
+builds manifest-selected Markdown and JSON receipts from immutable local Git
+objects. Repeat `--repo PATH REVISION` for a batch. No publication or scheduling
+occurs. See [source bundle contract and examples](doc_refresh/SOURCE_BUNDLES.md).

@@ -14,6 +14,9 @@ Version numbers in pyproject.toml (no git tags).
   Offline helpers only; no live transport or scheduling activation.
 
 ### Added
+- WOR-187 offline `repo-doc-bundle` CLI: one-repo/batch manifest selection at
+  pinned Git revisions, verified blob provenance, deterministic Markdown,
+  content-addressed local artifacts and receipts. No live publication or scheduling.
 - WOR-186 documentation source manifest: JSON Schema draft 2020-12 for
   `canonical_docs.yaml`, default privacy/build exclusions with fail-closed
   path and symlink containment, `extra_docs` consumption, AGENTS.md and
