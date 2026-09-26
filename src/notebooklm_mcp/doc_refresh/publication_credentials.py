@@ -128,7 +128,13 @@ def load_desktop_client(path: Path) -> DesktopClient:
         if entry.get('auth_uri') != 'https://accounts.google.com/o/oauth2/auth' \
                 or entry.get('token_uri') != 'https://oauth2.googleapis.com/token':
             raise ValueError('unexpected endpoint')
-        client = DesktopClient(entry['client_id'], entry.get('client_secret'))
+        # This setup lane consumes Google's Desktop client-secrets file format,
+        # whose client_secret field is required. The lower-level OAuth protocol
+        # model remains usable without a secret for nonsecret configuration.
+        secret = entry['client_secret']
+        if not isinstance(secret, str) or not secret:
+            raise ValueError('Desktop client secret required')
+        client = DesktopClient(entry['client_id'], secret)
     except Exception:
         pass
     if client is None:

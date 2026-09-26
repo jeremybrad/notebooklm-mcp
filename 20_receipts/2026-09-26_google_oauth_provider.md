@@ -51,6 +51,20 @@ parent task's `work/oauth/`. Exact-head independent review and triage will be
 recorded on the PR before readiness. Synthetic validation does not establish
 native-host access policy or Google production acceptance.
 
+Independent R1 raised OAUTH-F1 (original P2): missing/null client secrets were
+accepted by the Desktop setup-file loader, allowing setup to advance beyond local
+configuration validation. Four synthetic missing/null cases reproduced RED across
+enroll/renew; empty-string cases already refused. The loader now requires a
+nonempty secret before store/consent/HTTP access. Google's client-secrets file
+format makes this field mandatory; the general native-app protocol documentation
+labels the parameter optional, so no universal token-endpoint requirement or
+live Google failure is claimed. Both sources and the original review are retained
+in PR triage. The lower-level optional model still serves credential-free config.
+After the repair, both full Python suites passed **657 tests, one filesystem
+skip**; coverage remains OAuth/Keychain 91%, provider 92%, callback 87%, setup
+80%, whole package 49%. The six boundary cases and valid enrollment/renewal
+fixtures pass. The four changed paths remain within the original review scope.
+
 There is no deployed result: the old installed writer, shared canonical checkout,
 primer mirror, cookies, Google objects, real-source pilot and schedules were not
 changed. Source merge is not credential provisioning or runtime activation.

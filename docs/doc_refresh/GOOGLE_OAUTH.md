@@ -99,7 +99,11 @@ and enforces its lease margin and revision-bound write/readback rules.
    unlock a store to make unattended execution pass.
 3. After real enrollment approval, retain the downloaded Desktop client JSON in an
    explicit owner-only regular file (0600); never paste secrets into chat or pass
-   them in command arguments. Run `repo-doc-auth enroll --config ... --client-config ...`.
+   them in command arguments. This setup lane requires the Desktop file's nonempty
+   `client_secret` before any store access or consent, following Google's
+   [client-secrets file format](https://github.com/googleapis/google-api-python-client/blob/main/docs/client-secrets.md).
+   This file-format check is distinct from the general OAuth documentation's optional
+   protocol parameter. Run `repo-doc-auth enroll --config ... --client-config ...`.
    This explicit setup opens the system browser and a bounded localhost callback
    with random state and PKCE S256. Wrong state/path/Host, duplicates, denial and
    timeout fail safely. At most 32 connections and 16 KiB headers are accepted;

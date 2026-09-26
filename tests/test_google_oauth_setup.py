@@ -82,3 +82,24 @@ def test_renew_store_failure_precedes_browser_and_is_redacted(tmp_path, monkeypa
     monkeypatch.setattr(setup, 'get_authorization_code', forbid)
     assert setup.main(['renew', '--config', str(configuration(tmp_path)), '--client-config', str(client_file(tmp_path))]) == 1
     assert capsys.readouterr().err.strip() == 'keychain_access_denied'
+
+
+@pytest.mark.parametrize('secret', ['missing', None, ''])
+@pytest.mark.parametrize('mode', ['enroll', 'renew'])
+def test_desktop_file_without_secret_refuses_before_consent(tmp_path, monkeypatch, capsys, secret, mode):
+    path = client_file(tmp_path)
+    value = json.loads(path.read_text())
+    if secret == 'missing':
+        del value['installed']['client_secret']
+    else:
+        value['installed']['client_secret'] = secret
+    path.write_text(json.dumps(value))
+    touched = []
+    def unexpected(*args, **kwargs):
+        touched.append('credential-or-consent-access')
+        raise RuntimeError('fictional-secret-must-not-print')
+    for name in ('KeychainStore', 'OAuthClient', 'get_authorization_code'):
+        monkeypatch.setattr(setup, name, unexpected)
+    assert setup.main([mode, '--config', str(configuration(tmp_path)), '--client-config', str(path)]) == 1
+    assert touched == []
+    assert 'fictional-secret' not in capsys.readouterr().err
