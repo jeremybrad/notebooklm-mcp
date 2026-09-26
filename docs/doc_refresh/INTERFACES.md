@@ -62,6 +62,10 @@ Manifest YAML rejects duplicate mapping keys before values can be overwritten,
 including nested rules and merge collisions. Nonconflicting YAML merges remain
 supported. This structural check also applies with `load_manifest(validate=False)`;
 that option disables schema validation only.
+Repository override names must be strings. Quote numeric or boolean-like YAML
+names (for example, `"123"` or `"true"`). Non-string names raise `ManifestError`
+during validation before selection; names are never coerced, so exclusion rules
+cannot silently miss the repository's string name.
 
 Discovery captures manifest bytes once for parsing, validation and its provenance
 hash. A supplied mapping gets a byte hash only when it matches the captured file

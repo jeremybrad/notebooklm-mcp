@@ -177,3 +177,31 @@ captured-byte provenance. Ordinary schema checks remain separate. Other YAML
 loaders, runtime state and authentication are unchanged. Test/build results and
 the exact independent R11 assessment are recorded on PR #5; this receipt alone
 does not establish readiness. No live sources, uploads or scheduler changes.
+
+## String repository override names (2026-09-26, separately authorized)
+
+R11 accepted the duplicate-key repair and all twelve prior findings. New P1
+R11-N1 was reproduced through file-loaded and supplied manifests: numeric or
+boolean override keys passed validation but missed string repository names,
+selecting a fictional README despite its explicit exclusion. Quoted controls
+correctly excluded it. Jeremy replied “Approved” to the bounded schema repair
+and exactly one full-scope Codex subscription review, at most 30 minutes/$0 API
+(observed 2026-09-26T02:32:32Z, not asserted message timestamp; PR comment
+5842407060). Preserve all eleven prior reviews; stop for new/unresolved blockers,
+material scope/base movement, incomplete result or further review need.
+
+The existing schema now requires string property names in `repo_overrides`.
+It rejects malformed names rather than coercing them. Twenty-four regressions
+failed before the patch: integer, boolean, null and float keys, alone or mixed
+with a valid name, through loader, file discovery and supplied discovery.
+Eight string-name controls preserve exclusions through both discovery paths.
+The existing shared validator needs no change. No selector or runtime wiring
+was added. Full validation and exact independent R12 assessment are recorded
+on PR #5; this receipt alone does not establish readiness. No live publication,
+authentication, scheduler or merge action is included.
+
+Local validation: 208 passed and one filesystem-dependent skip on Python 3.11
+and 3.13; whole-package coverage 33%; wheel and sdist builds passed. The targeted
+manifest suite passed 118 tests with one skip. Hosted CI remains disabled for
+inactivity; these are local results. Guarded Codex login preflight verified
+ChatGPT subscription authentication without inference before review.

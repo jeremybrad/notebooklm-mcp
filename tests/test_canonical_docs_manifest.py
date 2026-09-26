@@ -306,6 +306,48 @@ def _existing(result) -> set[str]:
 
 
 class TestSchemaValidation:
+    @pytest.mark.parametrize("key", [123, True, None, 1.5])
+    @pytest.mark.parametrize("mixed", [False, True])
+    @pytest.mark.parametrize("entrypoint", ["loader", "file", "supplied"])
+    def test_rejects_non_string_override_names(
+        self, tmp_path: Path, key, mixed: bool, entrypoint: str
+    ):
+        repo = tmp_path / str(key).lower()
+        repo.mkdir()
+        (repo / "README.md").write_text("Fictional private repository notes")
+        manifest = copy.deepcopy(load_manifest())
+        rule = {"exclusions": [{"pattern": "README.md", "reason": "private fixture"}]}
+        manifest["repo_overrides"] = {key: rule}
+        if mixed:
+            manifest["repo_overrides"]["C090_valid"] = copy.deepcopy(rule)
+        path = tmp_path / "manifest.yaml"
+        path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+        with pytest.raises(ManifestError, match="repo_overrides"):
+            if entrypoint == "loader":
+                load_manifest(path)
+            elif entrypoint == "file":
+                discover_repo(repo, manifest_path=path, notebook_map=EMPTY_MAP)
+            else:
+                discover_repo(repo, manifest=manifest, notebook_map=EMPTY_MAP)
+
+    @pytest.mark.parametrize("name", ["123", "true", "null", "1.5"])
+    @pytest.mark.parametrize("entrypoint", ["file", "supplied"])
+    def test_string_override_names_preserve_exclusions(
+        self, tmp_path: Path, name: str, entrypoint: str
+    ):
+        repo = tmp_path / name
+        repo.mkdir()
+        (repo / "README.md").write_text("Fictional private repository notes")
+        manifest = copy.deepcopy(load_manifest())
+        manifest["repo_overrides"] = {
+            name: {"exclusions": [{"pattern": "README.md", "reason": "private fixture"}]}
+        }
+        path = tmp_path / "manifest.yaml"
+        path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+        kwargs = {"manifest_path": path} if entrypoint == "file" else {"manifest": manifest}
+        result = discover_repo(repo, notebook_map=EMPTY_MAP, **kwargs)
+        assert "README.md" not in _existing(result)
+
     def test_packaged_manifest_validates(self):
         manifest = load_manifest()
         assert manifest["schema"] == SCHEMA_ID

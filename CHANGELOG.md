@@ -52,6 +52,9 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- Reject non-string repository override names during manifest validation so YAML
+  numeric, boolean or null keys cannot silently bypass repository exclusions.
+  Quoted numeric and boolean-like repository names remain supported.
 - WOR-186: reject duplicate manifest YAML keys and conflicting merges before
   overwritten privacy rules can disappear during parsing.
 - WOR-186: honor recursive privacy exclusions at every directory depth; route

@@ -69,6 +69,7 @@
     },
     "repo_overrides": {
       "type": "object",
+      "propertyNames": { "type": "string" },
       "additionalProperties": { "$ref": "#/$defs/repo_override" }
     }
   },
