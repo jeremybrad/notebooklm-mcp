@@ -1,7 +1,7 @@
 """Pure offline preparation for the approved Drive publication pilot.
 
 Accepts caller-supplied text, never discovers or reads source files. This is not
-an export/privacy validator. Real-source integration awaits WOR-186 acceptance.
+an export/privacy validator. Real-source integration must use the accepted manifest.
 No HTTP, credentials, mapping writes, notebook operations or scheduler hooks.
 """
 from dataclasses import dataclass
@@ -17,7 +17,9 @@ def _digest(text: str) -> str:
 def _text(value: str) -> str:
     if not isinstance(value, str):
         raise ValueError('Expected text')
-    # Fail rather than hash characters that Docs strips or cannot represent.
+    # Restrict controls to LF/TAB and refuse surrogates and BMP private use.
+    # U+000B is supported by Google but intentionally outside this text subset;
+    # do not silently normalize it or claim Google strips it.
     if any((ord(c) < 32 and c not in '\n\t') or 0xD800 <= ord(c) <= 0xDFFF
            or 0xE000 <= ord(c) <= 0xF8FF for c in value):
         raise ValueError('Unsupported control, surrogate or private-use character')
@@ -122,11 +124,15 @@ def _utf16_length(text: str) -> int:
 def parse_document(raw: dict[str, Any]) -> DocsSnapshot:
     """Parse a complete Docs get(includeTabsContent=true) response.
 
+    The response must explicitly report SUGGESTIONS_INLINE; callers must request
+    that mode for both planning and readback. Missing/default/preview modes fail.
     Only a single tab with contiguous text paragraphs is supported. Refuse
     incomplete or structured content rather than silently dropping it from
     a replacement or a freshness comparison. No request is sent here.
     """
     try:
+        if raw.get('suggestionsViewMode') != 'SUGGESTIONS_INLINE':
+            raise ValueError('Docs response must explicitly use SUGGESTIONS_INLINE')
         _no_suggestions(raw)
         document_id, revision = _label(raw['documentId']), _label(raw['revisionId'])
         tabs = raw['tabs']
@@ -185,7 +191,12 @@ def plan_update(bundle: Bundle, remote: DocsSnapshot, binding: DocsBinding) -> U
 
     Destination identity and previous readback hash must match before replacing
     anything. Never adopt a manual edit as the new baseline automatically.
+    Clear-to-empty and sourceless publications are unsupported, even as no-ops.
     """
+    if type(bundle.source_count) is not int or bundle.source_count < 1:
+        raise ValueError('Bundle requires a positive source_count')
+    if not _text(bundle.text).strip():
+        raise ValueError('Bundle requires nonempty publication text')
     _label(remote.revision_id)
     if (remote.document_id, remote.tab_id) != (binding.document_id, binding.tab_id):
         raise ValueError('Destination identity mismatch')

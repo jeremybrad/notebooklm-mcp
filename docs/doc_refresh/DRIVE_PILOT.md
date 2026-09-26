@@ -59,7 +59,9 @@ the request's UTF-16 delete/insert operations to verify the expected text.
    and includes full source revisions and normalized-content SHA-256 digests.
    Its overall SHA-256 binds the rendered text; there is no wall-clock field.
 2. `parse_document(raw)` accepts a complete Docs response requested with
-   `includeTabsContent=true`. It requires exactly one tab, a revision ID and
+   `includeTabsContent=true` and `suggestionsViewMode=SUGGESTIONS_INLINE`.
+   The response must explicitly report that same mode, including on readback;
+   missing, default, unknown and preview modes refuse. It requires one tab, a revision ID and
    contiguous plain-text paragraphs. It checks UTF-16 ranges, refusing missing
    fields, additional tabs, child tabs, suggested changes and unsupported
    structures rather than silently omitting content.
@@ -68,8 +70,10 @@ the request's UTF-16 delete/insert operations to verify the expected text.
    than overwriting manual edits. Changed text produces one batch containing
    deletion (when needed), insertion and `requiredRevisionId`. It preserves the
    final undeletable newline and stable destination ID. Identical text is a
-   no-op. Unsupported controls/private-use characters refuse rather than
-   silently letting Google strip bytes that were included in the hash.
+   no-op. Every bundle requires a positive integer source count and non-whitespace
+   publication text, including for no-ops; clear-to-empty is unsupported. An empty
+   selected source is allowed because rendering still emits title/provenance.
+   Unsupported controls/private-use characters refuse without normalization.
 4. `verify_readback(plan, snapshot)` checks destination and exact expected text.
    It returns the verified digest; it does not mark NotebookLM current or
    persist/advance any mapping. The future caller owns verified state updates.
@@ -87,15 +91,41 @@ complete response, preserve destination ownership, reject unexpected revisions,
 and validate remote text before promoting publication state. This pilot contains
 no transport, retry loop, auth state, mapping extension or installed command.
 
+## Supported text and historical follow-ups
+
+WOR-788 resolves DRIVE-F1 (original P3) by requiring an explicit inline-suggestions
+response before parsing either the planning snapshot or readback. Nonempty
+`suggested*` markers still refuse in inline mode. Future callers must route every
+Google response through `parse_document`; constructing a `DocsSnapshot` directly
+is only appropriate for trusted synthetic fixtures, not a transport shortcut.
+
+WOR-789 resolves DRIVE-F2 (original P2) by retaining a deliberate narrow policy:
+LF and TAB are the only supported C0 controls. U+000B soft breaks are valid Google
+text but unsupported here, in both source text and remote snapshots. Google's
+[InsertTextRequest reference](https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/request#InsertTextRequest)
+excludes U+000B from the documented stripping ranges; this implementation must not
+claim otherwise. Surrogates and BMP private-use characters also refuse. Source
+CR/CRLF is normalized to LF before this check; remote content is not normalized.
+
+DRIVE-F3 (original P3) is resolved by rejecting empty/whitespace-only or sourceless
+bundles before planning, even against an already-empty destination. This avoids
+empty insert requests without claiming that Google rejects them. There is no
+clear-to-empty operation. A future deletion feature requires a separate contract.
+
+These three findings and their original severities remain in the completed
+[PR #7 review](https://github.com/jeremybrad/notebooklm-mcp/pull/7#issuecomment-5841635568).
+The current follow-up adds and tests the input rules required before live adapter
+integration; it does not re-review or erase that pilot's historical review rounds.
+
 ## Remaining acceptance and integration
 
-WOR-186 / PR #5 retains its six reviews and explicit operator continuation stop
-for F4. This work does not repair, review or clear it. Real-repository bundle
-selection remains blocked on accepted privacy rules; no alternate selector may
-be connected to these helpers. WOR-187's C021-plus-core-repo acceptance is not
-satisfied by synthetic inputs.
+WOR-186 / [PR #5](https://github.com/jeremybrad/notebooklm-mcp/pull/5) is merged
+at `6317b5db57f82a9df0e1302cacb05fb80ccb2011`; its fourteen reviews and privacy
+repairs remain recorded there. The accepted manifest must supply real-repository
+selection; no alternate selector may be connected to these helpers. WOR-187's
+C021-plus-core-repo acceptance is not satisfied by synthetic inputs.
 
-After that boundary is accepted, integrate selected text and C010-generated
+Next, integrate selected text and C010-generated
 publication copies from pinned approved revisions. Use source-specific immutable
 revisions so unrelated repository commits do not cause content churn. Preserve
 hash/manifest identity in the existing C021 map/receipt mechanism; do not create
