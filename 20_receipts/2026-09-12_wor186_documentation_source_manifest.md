@@ -205,3 +205,33 @@ and 3.13; whole-package coverage 33%; wheel and sdist builds passed. The targete
 manifest suite passed 118 tests with one skip. Hosted CI remains disabled for
 inactivity; these are local results. Guarded Codex login preflight verified
 ChatGPT subscription authentication without inference before review.
+
+## Repository-root identity and diagnostic handling (2026-09-26)
+
+R12 accepted the override-name schema repair but identified R12-N1 (P1): root
+case/Unicode aliases miss repository-specific exclusion keys, and R12-N2 (P2):
+mixed malformed names/values raise TypeError while sorting diagnostic paths.
+Both were reproduced with temporary fictional data. Jeremy replied “Approved!
+Thank you!” to the bounded two-fix plan plus exactly one full-scope Codex review,
+at most 30 minutes/$0 API (observed 2026-09-26T02:46:32Z, not asserted message
+timestamp; PR comment5842504951). Preserve all twelve prior reviews; stop for
+new/unresolved blockers, material scope/base movement, incomplete result or
+further review need.
+
+Fifteen regression cases failed before repair. Discovery now checks the root's
+literal basename against its parent's directory entries before override lookup,
+rejecting case/Unicode aliases and direct root symlinks. Canonical exclusion and
+allowed-file controls pass through both discovery and the automatic legacy
+selector, including a symlinked ancestor. No global lowercasing or Unicode
+coercion changes repository identities. Missing roots retain empty discovery.
+Validation diagnostics preserve validator order rather than sorting mixed path
+component types; loader/file/supplied cases consistently raise ManifestError.
+Existing discovery/schema/test/interface/changelog files only; no runtime or
+consumer wiring added. Exact test/build and R13 review evidence is on PR #5;
+this receipt alone does not establish readiness. No live publication,
+authentication, scheduler or merge operation is included.
+
+Local validation: 223 passed and one filesystem-dependent skip on Python 3.11
+and 3.13; whole-package coverage 33%; wheel and sdist passed. Targeted manifest
+suite: 133 passed/one skip. Guarded subscription login preflight passed without
+inference. No hosted CI run is claimed; the inactive workflow remains unchanged.

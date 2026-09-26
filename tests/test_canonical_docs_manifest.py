@@ -30,6 +30,73 @@ from notebooklm_mcp.doc_refresh.selection import glob_match
 EMPTY_MAP = {"notebooks": {}, "sync_log": [], "config": {}}
 
 
+@pytest.mark.parametrize("kind", ["case", "unicode", "symlink"])
+@pytest.mark.parametrize("ancestor_alias", [False, True])
+@pytest.mark.parametrize("entrypoint", ["discovery", "legacy"])
+def test_repo_root_alias_cannot_bypass_overrides(
+    tmp_path, monkeypatch, kind, ancestor_alias, entrypoint
+):
+    import unicodedata
+    from notebooklm_mcp.sync_cli import discover_tier3_docs
+
+    parent = tmp_path.resolve() / "parent"
+    parent.mkdir()
+    repo = parent / ("C099_Caf\u00e9" if kind == "unicode" else "C099_docs")
+    repo.mkdir()
+    repo = next(parent.iterdir())  # Use the actual directory-entry spelling.
+    _write(repo / "README.md", "Fictional private notes")
+    _write(repo / "CHANGELOG.md", "Fictional public history")
+    if kind == "case":
+        alias_name = repo.name.swapcase()
+    elif kind == "unicode":
+        form = "NFD" if repo.name == unicodedata.normalize("NFC", repo.name) else "NFC"
+        alias_name = unicodedata.normalize(form, repo.name)
+    else:
+        alias_name = "linked_repo"
+        (parent / alias_name).symlink_to(repo, target_is_directory=True)
+    alias = parent / alias_name
+    if alias.name == repo.name or not alias.exists() or not alias.samefile(repo):
+        pytest.skip("requires filesystem spelling aliases")
+    manifest = load_manifest()
+    manifest["repo_overrides"][repo.name] = {
+        "exclusions": [{"pattern": "README.md", "reason": "private fixture"}]
+    }
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+    module = importlib.import_module("notebooklm_mcp.doc_refresh.discover")
+    monkeypatch.setattr(module, "DEFAULT_MANIFEST_PATH", path)
+    if ancestor_alias:
+        ancestor = tmp_path / "ancestor"
+        ancestor.symlink_to(parent, target_is_directory=True)
+        repo, alias = ancestor / repo.name, ancestor / alias_name
+
+    def selected(root):
+        if entrypoint == "discovery":
+            return _existing(discover_repo(root, notebook_map=EMPTY_MAP))
+        return {p.relative_to(root).as_posix() for p in discover_tier3_docs(root)}
+
+    assert "README.md" not in selected(repo)
+    assert "CHANGELOG.md" in selected(repo)
+    with pytest.raises(ManifestError, match="repository root"):
+        selected(alias)
+
+
+@pytest.mark.parametrize("entrypoint", ["loader", "file", "supplied"])
+def test_mixed_invalid_override_names_and_values_raise_manifest_error(tmp_path, entrypoint):
+    repo = build_simple_repo(tmp_path)
+    manifest = load_manifest()
+    manifest["repo_overrides"] = {123: None, "valid": None}
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+    with pytest.raises(ManifestError, match="repo_overrides"):
+        if entrypoint == "loader":
+            load_manifest(path)
+        elif entrypoint == "file":
+            discover_repo(repo, manifest_path=path, notebook_map=EMPTY_MAP)
+        else:
+            discover_repo(repo, manifest=manifest, notebook_map=EMPTY_MAP)
+
+
 @pytest.mark.parametrize("case", ["global", "override_name", "nested", "merge_conflict", "repeated_merge"])
 @pytest.mark.parametrize("entrypoint", ["loader", "discovery", "schema_opt_out"])
 def test_manifest_duplicate_keys_fail_before_selection(tmp_path, case, entrypoint):

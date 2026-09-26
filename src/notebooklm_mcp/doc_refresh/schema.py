@@ -40,7 +40,9 @@ def validate_canonical_docs(data: Any) -> None:
 
     schema = load_schema()
     validator = Draft202012Validator(schema)
-    errors = sorted(validator.iter_errors(data), key=lambda err: list(err.path))
+    # Malformed YAML keys may have different types. Preserve validator order
+    # rather than comparing incompatible diagnostic path components.
+    errors = list(validator.iter_errors(data))
     if not errors:
         return
 

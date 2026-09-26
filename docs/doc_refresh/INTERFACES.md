@@ -66,6 +66,12 @@ Repository override names must be strings. Quote numeric or boolean-like YAML
 names (for example, `"123"` or `"true"`). Non-string names raise `ManifestError`
 during validation before selection; names are never coerced, so exclusion rules
 cannot silently miss the repository's string name.
+Discovery checks the repository root's literal directory-entry spelling before
+looking up overrides. Alternate case/Unicode spellings and a symlink at the root
+raise `ManifestError`; symlinked ancestors remain supported. This check does not
+lowercase names or merge identities on case-sensitive filesystems. Malformed
+manifests report validation errors in validator order, without comparing mixed
+key types in diagnostic paths.
 
 Discovery captures manifest bytes once for parsing, validation and its provenance
 hash. A supplied mapping gets a byte hash only when it matches the captured file

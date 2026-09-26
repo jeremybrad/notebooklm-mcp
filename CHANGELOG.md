@@ -52,6 +52,9 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- Reject repository-root case/Unicode aliases and root symlinks before override
+  lookup, preserving exclusions and supported ancestor aliases. Keep malformed
+  manifest diagnostics type-safe when invalid keys and values coexist.
 - Reject non-string repository override names during manifest validation so YAML
   numeric, boolean or null keys cannot silently bypass repository exclusions.
   Quoted numeric and boolean-like repository names remain supported.

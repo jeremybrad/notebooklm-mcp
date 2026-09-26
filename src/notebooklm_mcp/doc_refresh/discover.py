@@ -25,7 +25,7 @@ from .manifest import (
     resolve_tier3_root,
 )
 from .models import DiscoveryResult, DocItem, Tier
-from .schema import validate_canonical_docs
+from .schema import ManifestError, validate_canonical_docs
 from .selection import (
     get_exclusions,
     get_extra_docs,
@@ -34,6 +34,20 @@ from .selection import (
     path_is_contained,
 )
 
+def _validate_repo_root_spelling(repo_path: Path) -> None:
+    """Refuse root aliases before their spelling can choose a different override."""
+    try:
+        if repo_path.is_symlink():
+            raise ManifestError("repository root must not be a symlink")
+        if repo_path.is_dir():
+            # Compare literal directory entries, without changing case or Unicode.
+            # The parent may be an ancestor alias; its entries still identify the
+            # same repository basename. Missing roots retain empty discovery.
+            names = {entry.name for entry in repo_path.parent.iterdir()}
+            if repo_path.name not in names:
+                raise ManifestError("repository root must use its directory-entry spelling")
+    except (OSError, RuntimeError) as exc:
+        raise ManifestError("cannot verify repository root spelling") from exc
 
 
 def discover_repo(
@@ -68,6 +82,7 @@ def discover_repo(
             captured, captured_hash = _load_manifest_snapshot(manifest_path)
             if captured == manifest:
                 manifest_hash = captured_hash
+    _validate_repo_root_spelling(repo_path)
     if notebook_map is None:
         notebook_map = load_notebook_map()
 
