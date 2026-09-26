@@ -156,3 +156,24 @@ It now asserts canonical manifest membership and omission of unlisted docs;
 this necessary compatibility-test update adds no new behavior beyond the
 approved selector consolidation. Its path is included in the complete review
 context alongside the two newly admitted consumer code paths.
+
+## Strict manifest YAML construction (2026-09-26, separately authorized)
+
+R10 accepted all eleven previous findings but identified R10-N1 (P1): PyYAML
+silently replaced duplicate exclusion keys before schema validation. A synthetic
+duplicate global exclusion block reproduced inclusion of a fictional private
+file. Jeremy replied “Approved - please continue” to this bounded loader repair
+and one full-scope Codex subscription review, at most 30 minutes/$0 API
+(observed 2026-09-26T02:16:43Z, not asserted message timestamp). Preserve all ten
+prior rounds and stop for a new/unresolved blocker or further review need.
+
+Fifteen cases failed before repair: global exclusion duplicates, repeated
+repository override names, nested exclusion duplicates, merge collisions and
+repeated merge keys, each through loader, discovery and schema-opt-out entry
+points. A manifest-only SafeLoader subclass checks mapping keys before and after
+merge flattening, rejecting overwrites with ManifestError. Nonconflicting merges
+remain supported, with a regression preserving exclusion behavior and exact
+captured-byte provenance. Ordinary schema checks remain separate. Other YAML
+loaders, runtime state and authentication are unchanged. Test/build results and
+the exact independent R11 assessment are recorded on PR #5; this receipt alone
+does not establish readiness. No live sources, uploads or scheduler changes.

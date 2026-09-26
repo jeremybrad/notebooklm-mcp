@@ -30,6 +30,51 @@ from notebooklm_mcp.doc_refresh.selection import glob_match
 EMPTY_MAP = {"notebooks": {}, "sync_log": [], "config": {}}
 
 
+@pytest.mark.parametrize("case", ["global", "override_name", "nested", "merge_conflict", "repeated_merge"])
+@pytest.mark.parametrize("entrypoint", ["loader", "discovery", "schema_opt_out"])
+def test_manifest_duplicate_keys_fail_before_selection(tmp_path, case, entrypoint):
+    repo = build_complex_repo(tmp_path)
+    manifest = load_manifest()
+    raw = yaml.safe_dump(manifest)
+    if case == "global":
+        raw += '\nexclusions:\n  - pattern: "**/*.log"\n    reason: logs\n'
+    else:
+        del manifest["repo_overrides"]
+        raw = yaml.safe_dump(manifest)
+        overrides = {
+            "override_name": '  C091_complex-docs: {exclusions: [{pattern: README.md, reason: privacy}]}\n  C091_complex-docs: {}\n',
+            "nested": '  C091_complex-docs:\n    exclusions: [{pattern: README.md, reason: privacy}]\n    exclusions: []\n',
+            "merge_conflict": '  C091_complex-docs:\n    <<: &policy {exclusions: [{pattern: README.md, reason: privacy}]}\n    exclusions: []\n',
+            "repeated_merge": '  C091_complex-docs:\n    <<: {exclusions: [{pattern: README.md, reason: privacy}]}\n    <<: {extra_docs: []}\n',
+        }
+        raw += '\nrepo_overrides:\n' + overrides[case]
+    path = tmp_path / "duplicate.yaml"
+    path.write_text(raw, encoding="utf-8")
+    with pytest.raises(ManifestError, match="duplicate"):
+        if entrypoint == "discovery":
+            discover_repo(repo, manifest_path=path, notebook_map=EMPTY_MAP)
+        else:
+            load_manifest(path, validate=entrypoint != "schema_opt_out")
+
+
+def test_nonconflicting_yaml_merge_preserves_selection_and_byte_hash(tmp_path):
+    repo = build_simple_repo(tmp_path)
+    manifest = load_manifest()
+    del manifest["repo_overrides"]
+    raw = yaml.safe_dump(manifest) + '''
+repo_overrides:
+  C090_simple-docs:
+    <<: &policy {exclusions: [{pattern: README.md, reason: privacy}]}
+    extra_docs: []
+'''
+    path = tmp_path / "merged.yaml"
+    path.write_text(raw, encoding="utf-8")
+    result = discover_repo(repo, manifest_path=path, notebook_map=EMPTY_MAP)
+    assert "README.md" not in _existing(result)
+    assert "CHANGELOG.md" in _existing(result)
+    assert result.manifest_content_hash == hashlib.sha256(raw.encode()).hexdigest()[:12]
+
+
 @pytest.mark.parametrize("pattern", ["docs/**/restricted.md", "docs/**/**/restricted.md"])
 @pytest.mark.parametrize("relative", ["docs/restricted.md", "docs/one/restricted.md", "docs/one/two/restricted.md"])
 def test_recursive_exclusions_cover_every_depth(tmp_path, pattern, relative):

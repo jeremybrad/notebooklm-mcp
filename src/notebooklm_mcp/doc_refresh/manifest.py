@@ -201,6 +201,34 @@ def load_manifest(
     return loaded
 
 
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    """Reject rule overwrites both in explicit mappings and YAML merges."""
+
+    _merge_key = object()
+
+    def _check_keys(self, node: yaml.MappingNode) -> None:
+        seen: set[Any] = set()
+        for key_node, _ in node.value:
+            key = (
+                self._merge_key if key_node.tag == "tag:yaml.org,2002:merge"
+                else self.construct_object(key_node, deep=True)
+            )
+            try:
+                if key in seen:
+                    raise ManifestError(
+                        f"canonical_docs duplicate mapping key at line {key_node.start_mark.line + 1}"
+                    )
+                seen.add(key)
+            except TypeError as exc:
+                raise ManifestError("canonical_docs mapping key is not hashable") from exc
+
+    def flatten_mapping(self, node: yaml.MappingNode) -> None:
+        self._check_keys(node)
+        super().flatten_mapping(node)
+        # Merge construction can introduce collisions absent in the raw keys.
+        self._check_keys(node)
+
+
 def _load_manifest_snapshot(
     manifest_path: Optional[Path] = None,
     *,
@@ -209,7 +237,10 @@ def _load_manifest_snapshot(
     """Parse and hash the same captured bytes, even if the file later changes."""
     path = manifest_path or DEFAULT_MANIFEST_PATH
     raw = path.read_bytes()
-    loaded = yaml.safe_load(raw.decode("utf-8"))
+    try:
+        loaded = yaml.load(raw.decode("utf-8"), Loader=_UniqueKeySafeLoader)
+    except (yaml.YAMLError, UnicodeError) as exc:
+        raise ManifestError("canonical_docs YAML could not be parsed") from exc
     if validate:
         validate_canonical_docs(loaded)
     if not isinstance(loaded, dict):

@@ -52,6 +52,8 @@ Version numbers in pyproject.toml (no git tags).
 - Security and code-tour docs updated to reflect persisted local doc-refresh state.
 
 ### Fixed
+- WOR-186: reject duplicate manifest YAML keys and conflicting merges before
+  overwritten privacy rules can disappear during parsing.
 - WOR-186: honor recursive privacy exclusions at every directory depth; route
   legacy automatic sync and primer source gathering through the shared manifest,
   including optional RELATIONS.yaml and literal automatic CLI file handoff.

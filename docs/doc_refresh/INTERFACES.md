@@ -58,6 +58,10 @@ Validated against `src/notebooklm_mcp/doc_refresh/canonical_docs.schema.json`
 caller-supplied mappings before selection, including mappings loaded with the
 loader's explicit `validate=False` option. Invalid privacy entries raise
 `ManifestError`; they are not silently discarded.
+Manifest YAML rejects duplicate mapping keys before values can be overwritten,
+including nested rules and merge collisions. Nonconflicting YAML merges remain
+supported. This structural check also applies with `load_manifest(validate=False)`;
+that option disables schema validation only.
 
 Discovery captures manifest bytes once for parsing, validation and its provenance
 hash. A supplied mapping gets a byte hash only when it matches the captured file
