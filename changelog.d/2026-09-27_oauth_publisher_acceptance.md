@@ -1,4 +1,4 @@
-- **docs(auth): record stopped synthetic publisher acceptance** — WOR-188:
-  exact-grant refresh succeeded, then root metadata returned HTTP404 before any
-  Doc creation or content write. Preserved the single attempt and prepared a
-  bounded My Drive default-location continuation; live acceptance remains open.
+- **docs(auth): record successful synthetic publisher acceptance** — WOR-188:
+  preserve the root-lookup failure and approved continuation; one private Doc
+  passed A/B exact readback and a remotely verified unchanged rerun. Nightly
+  activation and real-source publication remain separate, open work.
