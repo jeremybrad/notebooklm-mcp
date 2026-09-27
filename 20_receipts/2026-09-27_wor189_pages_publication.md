@@ -40,3 +40,15 @@ acceptance of the hostname remains unverified. Durable grant and native
 production-item/locked-denied/full-publisher acceptance, recurring cutover and
 first scheduled receipt remain open. Website rollback is disabling the new Pages
 site; it must not change the Google grant, Docs, notebooks or legacy job.
+
+## Separate approved Branding save
+
+After website verification, Jeremy explicitly approved adding
+`jeremybrad.github.io` to Codify3030's authorized domains and setting the two
+published URLs as homepage/privacy links; owning decision WOR-189 comment
+`b6e3770f-32bf-4ea4-87ed-92bf6a8d2fd3` at 23:52:53Z. Google displayed
+“Branding changes saved!” with the intended values and Save/Discard disabled.
+Existing domain, clients, scopes, app name and contacts were preserved. Evidence:
+`deployment/branding-prepared.png` and `deployment/branding-saved.png` in the
+local evidence directory above. This confirms acceptance of the saved fields,
+not brand verification, production audience or a renewed/longer-lived grant.
