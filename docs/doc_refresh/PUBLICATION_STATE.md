@@ -8,8 +8,10 @@ Tests use explicit temporary maps and fictional Docs. Existing jobs still use
 their old code path and are not changed by this module.
 
 The later [explicit publisher](PUBLISHER.md) supplies a separate HTTP adapter,
-batch layer and command interface around this library. Its production credential
-provider is unconfigured and no installed job is connected.
+batch layer and command interface around this library. Its explicit credential
+provider has completed the bounded C014 pilot recorded in PR #17; no installed
+nightly job is connected to this library. Pilot acceptance is distinct from
+long-term unattended OAuth acceptance.
 
 ## Existing map, versioned extension
 

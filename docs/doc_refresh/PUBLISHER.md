@@ -2,9 +2,11 @@
 
 WOR-188 connects the existing immutable Git bundle builder and publication-state
 library to native Google Docs/Drive HTTP requests and explicit batch operations.
-It is implemented and tested with fictional repositories and mocked HTTP. It is
-**not installed or activated**. An explicit Google OAuth/Keychain provider is
-implemented with synthetic tests; no production grant has been provisioned.
+The explicit Google OAuth/Keychain provider and native HTTP path have passed a
+bounded C014 live pilot (PR #17), including Docs readback and a NotebookLM source
+citation. The new publisher is **not connected to the installed nightly job**.
+The pilot used an external Testing-mode OAuth app; it does not establish
+unattended long-term credential acceptance.
 NotebookLM cookies are not Google Docs OAuth credentials.
 
 ## Start with an offline plan
@@ -25,7 +27,7 @@ PYTHONPATH=/absolute/path/to/checkout/src python -m notebooklm_mcp.doc_refresh.p
 
 The packaged command is `repo-doc-publish`, but adding the entry point does not
 install it. There is no default map/receipt path, implicit repository discovery,
-`--all`, automatic fetch, or scheduler registration. Each repeated `--repo` takes
+`--all`, implicit fetch, or scheduler registration. Each repeated `--repo` takes
 an explicit root and full immutable commit SHA. The map and receipt destinations
 must stay outside the selected source repositories. An absent map is read in
 memory; planning does not create it. The receipt directory must already exist.
@@ -147,3 +149,65 @@ Primary contracts: [Docs get](https://developers.google.com/workspace/docs/api/r
 [Docs batchUpdate](https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/batchUpdate),
 [Drive scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth),
 [Drive account](https://developers.google.com/workspace/drive/api/reference/rest/v3/about/get).
+
+## Explicit multi-repository cohort
+
+For a maintained nightly selection, use `--cohort /absolute/path/cohort.json`
+instead of repeated `--repo` arguments. This opt-in configuration names exact
+repository roots, names, origin URLs and `refs/heads/...` branches, plus the
+SHA-256 of the inspected source manifest. See [the example](cohort.example.json).
+Replace every placeholder; the example is not an executable enrollment.
+
+`plan --cohort ...` is offline by default and labels remote-ref freshness
+`unverified-local-ref`. Add `--fetch` to explicitly fetch the configured branches.
+`publish --cohort ...` requires `--fetch`; all fetches must succeed. Fetch never
+pulls or rewrites a checkout. Each branch is resolved once to a full commit and
+that revision is used throughout the batch. The approved manifest bytes are
+captured privately for the run; a changed manifest hash is refused. The full
+manifest hash and ref-freshness label are CLI output metadata; batch receipts
+retain their existing commit/source hashes and manifest hash prefix. Preflight
+configuration/fetch refusals return exit 2 without a batch receipt, so host
+monitoring must also capture command failure. Configured
+GitHub origins must match the checkout's literal and effective origin URL.
+
+The existing map and receipt arguments remain mandatory. No Doc or notebook is
+created by cohort execution. Every source bundle and every configured map/Doc
+binding is checked before credential access or cloud publication begins. Live
+Google identity, permissions, content and revision checks still happen for each
+Doc through the existing transport. A later live failure can leave a partial
+batch; the receipt records what succeeded and what was not attempted.
+
+Recover a pending operation with the original full commit using `--repo` and the
+original approved manifest, never by resolving a moving branch. Cohort mode
+refuses `reconcile`. Preserve those input revisions and the accepted manifest as
+part of operational evidence; a later manifest approval does not change an
+already pending operation's input.
+
+## Rollout and ongoing maintenance
+
+Enrollment is deliberate: inspect exact source files, approve their Google
+account/Doc/notebook destinations, create and bind those destinations through the
+existing enrollment procedure, then run an observed publication and verify the
+NotebookLM source and citations. A file-selection rule alone is not an upload
+approval. The proposed first wave is C014's two inspected journal documents and
+C021's three publisher documents. C001 is held pending documentation corrections.
+
+The current installed 02:00 job still invokes the legacy `notebooklm-sync` route.
+Changing it requires a concrete host cutover after credential acceptance. A
+separate rclone primer mirror uses a different account and is not superseded by
+this rollout. This change installs neither a job nor a new background listener.
+
+After activation, a nightly run should fetch, freeze revisions, validate the
+approved selection, update changed Docs under their existing IDs, verify remote
+readback and record success/failure. No-change runs still verify remote content.
+Monitor terminal receipts and stale last-success times; a process exit alone
+is not evidence that all Docs or NotebookLM sources are current. Credential
+revocation, pending state or unexpected edits stop publication for investigation.
+NotebookLM ingestion must be verified separately from a successful Docs write.
+
+Repo owners maintain accurate source documentation through normal PRs. Adding a
+repo, widening source selection or changing a destination requires inspection and
+an updated approved configuration. The manifest hash deliberately makes unnoticed
+selection changes fail closed. Audio and graphics remain on demand and retain
+the source version they were generated from; updating a Doc does not regenerate
+them. No model inference is needed for deterministic publication.

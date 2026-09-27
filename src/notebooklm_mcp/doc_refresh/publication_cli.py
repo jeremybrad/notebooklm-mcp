@@ -9,6 +9,7 @@ from typing import Any
 
 from .publication_batch import Job, ReceiptError, execute
 from .publication_state import MapStore
+from .publication_cohort import CohortError, prepare, validate_destinations
 from .publication_credentials import ProviderError, load_config, transport_factory
 
 
@@ -39,7 +40,10 @@ def _snapshots(path: Path) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="plan", choices=("plan", "publish", "reconcile", "status"))
-    parser.add_argument("--repo", nargs=2, action="append", required=True, metavar=("PATH", "FULL_COMMIT"))
+    sources = parser.add_mutually_exclusive_group(required=True)
+    sources.add_argument("--repo", nargs=2, action="append", metavar=("PATH", "FULL_COMMIT"))
+    sources.add_argument("--cohort", type=Path, help="Explicit inspected cohort configuration")
+    parser.add_argument("--fetch", action="store_true", help="Cohort only: fetch each pinned origin branch before resolving")
     parser.add_argument("--map", required=True, type=Path, dest="map_path")
     parser.add_argument("--receipts", required=True, type=Path,
                         help="Existing local receipt directory outside source repositories")
@@ -48,6 +52,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--credentials-config", type=Path,
                         help="Live modes only: explicit nonsecret OAuth/Keychain configuration")
     args = parser.parse_args(argv)
+    if args.fetch and (not args.cohort or args.mode not in {"plan", "publish"}):
+        parser.error("--fetch requires cohort plan or publish")
+    if args.cohort and args.manifest:
+        parser.error("Cohort manifest is pinned in its configuration")
+    if args.cohort and args.mode == "reconcile":
+        parser.error("Reconcile requires original explicit --repo commits")
+    if args.cohort and args.mode == "publish" and not args.fetch:
+        parser.error("Cohort publish requires --fetch; stale refs are not publication inputs")
+    if args.cohort and args.mode == "publish" and not args.credentials_config:
+        parser.error("Cohort publish requires explicit credential configuration")
     if args.snapshots and args.mode != "plan":
         parser.error("--snapshots is only valid with plan")
     if args.credentials_config and args.mode not in {"publish", "reconcile"}:
@@ -58,15 +72,36 @@ def main(argv: list[str] | None = None) -> int:
         print("Invalid snapshot input", file=sys.stderr)
         return 2
     try:
-        factory = transport_factory(load_config(args.credentials_config, live=True)) \
-            if args.credentials_config else None
+        config = load_config(args.credentials_config, live=True) if args.credentials_config else None
+        if args.cohort:
+            with prepare(args.cohort, fetch=args.fetch) as cohort:
+                store = MapStore(args.map_path)
+                if config is not None:
+                    validate_destinations(cohort, store, config)
+                # The factory is lazy; batch validates all captured source bundles
+                # and pending intents before its first credential/provider access.
+                factory = transport_factory(config) if config is not None else None
+                result = execute(args.mode, list(cohort.jobs), store, args.receipts,
+                                 manifest_path=cohort.manifest, snapshots=snapshots,
+                                 transport_factory=factory)
+                # CLI context only; the batch receipt already records exact commits
+                # and source hashes. Do not claim a fresh source observation merely
+                # because remote-tracking refs were available locally.
+                result["cohort_preflight"] = {
+                    "ref_freshness": cohort.freshness,
+                    "manifest_sha256": cohort.manifest_sha256,
+                }
+        else:
+            factory = transport_factory(config) if config is not None else None
+            result = execute(args.mode, [Job(Path(path), revision) for path, revision in args.repo],
+                             MapStore(args.map_path), args.receipts, manifest_path=args.manifest,
+                             snapshots=snapshots, transport_factory=factory)
     except ProviderError:
         print("Invalid credential configuration", file=sys.stderr)
         return 2
-    try:
-        result = execute(args.mode, [Job(Path(path), revision) for path, revision in args.repo],
-                         MapStore(args.map_path), args.receipts, manifest_path=args.manifest,
-                         snapshots=snapshots, transport_factory=factory)
+    except CohortError as error:
+        print("Cohort preflight failed: " + str(error), file=sys.stderr)
+        return 2
     except ReceiptError:
         print("Receipt persistence failed; no successful run is claimed", file=sys.stderr)
         return 1

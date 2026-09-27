@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "manifest": {
+    "path": "/absolute/path/to/inspected-sources.yaml",
+    "sha256": "REPLACE_WITH_SHA256_OF_APPROVED_MANIFEST_BYTES"
+  },
+  "repositories": [
+    {
+      "root": "/absolute/path/to/C999_example",
+      "name": "C999_example",
+      "origin": "https://github.com/approved-owner/approved-repository.git",
+      "branch": "refs/heads/main"
+    }
+  ]
+}
