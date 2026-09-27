@@ -52,3 +52,20 @@ Existing domain, clients, scopes, app name and contacts were preserved. Evidence
 `deployment/branding-prepared.png` and `deployment/branding-saved.png` in the
 local evidence directory above. This confirms acceptance of the saved fields,
 not brand verification, production audience or a renewed/longer-lived grant.
+
+## Separate approved declared-scope cleanup
+
+The subsequent read-only scope inventory found 31 declarations: drive.file,
+4 other non-sensitive declarations and 26 sensitive Cloud declarations, with
+no restricted scopes. This inventory is not evidence that C021 holds those
+broader permissions; its OAuth request remains drive.file only. Jeremy approved
+removing the other 30 declarations, recorded in WOR-189 comment
+`6c1a6ab5-20f1-46ad-a2ff-7fe07d151e3c` at 23:54:55Z.
+
+The scope form was reduced to one non-sensitive drive.file row and empty
+sensitive/restricted tables, then saved. Google displayed “Data access changes
+saved!” and disabled Save/Discard. Before inventory and resulting screenshot
+are retained as deployment/declared-scopes-before.json and scopes-saved.png.
+Clients and grants were not deleted, changed or revoked. Scope declarations
+are not a revocation mechanism. The app remained in Testing after this action;
+production audience and renewal still require their separate decisions.
