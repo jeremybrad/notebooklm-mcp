@@ -69,3 +69,17 @@ are retained as deployment/declared-scopes-before.json and scopes-saved.png.
 Clients and grants were not deleted, changed or revoked. Scope declarations
 are not a revocation mechanism. The app remained in Testing after this action;
 production audience and renewal still require their separate decisions.
+
+## Separate approved OAuth production audience
+
+Jeremy then approved the action-time Publish app decision, recorded in WOR-189
+comment `ef13ae47-8e5d-4883-a3a8-5bcc6afbe8dd` at 23:57:43Z. Google's confirmation
+explained availability to any Google Account and verification conditions. After
+confirmation, the Audience page showed In production, External and Back to testing.
+Evidence: deployment/audience-before.png and audience-production.png.
+
+This supersedes the preceding Testing-state checkpoint only. Website, Branding,
+minimal declared scopes and production audience are complete. The pre-existing
+Testing grant's recorded lifetime was not changed or re-measured; no renewal,
+revocation or credential write occurred. Production status alone does not prove
+indefinite token life, verified branding or unattended publisher acceptance.

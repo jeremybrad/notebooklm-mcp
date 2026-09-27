@@ -1,4 +1,4 @@
-- **docs(receipt): record C021 Pages and OAuth preparation** — Approved Pages
-  deployment and live bytes verified; separately approved Branding save and
-  drive.file-only scope declaration cleanup completed. Production audience,
-  grant renewal and nightly acceptance remain separate.
+- **docs(receipt): record C021 Pages and approved OAuth configuration** —
+  Verified public site bytes, saved Branding URLs/domain, reduced declared
+  scopes to drive.file and published the OAuth app after separate approvals.
+  Grant renewal and nightly host/cutover acceptance remain open.
