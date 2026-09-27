@@ -8,6 +8,11 @@ Version numbers in pyproject.toml (no git tags).
 ## [Unreleased]
 
 ### Added
+- WOR-189: explicit, manifest-pinned multi-repository cohort preflight for the
+  existing publisher. Offline planning reports unverified ref freshness; live
+  cohort publication requires successful fetches and fixed commit inputs, with
+  all configured source/destination checks before credential access. No scheduler
+  installation, enrollment, credential change or cloud publication is included.
 - WOR-188: explicit Google Desktop OAuth enrollment/renewal and refresh-to-lease
   provider for the existing documentation publisher. Uses one selected macOS
   login-Keychain item, bounded PKCE loopback consent, pinned account/client and
