@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C021 privacy notice</title>
+<style>body{max-width:760px;margin:56px auto;padding:0 24px;font:18px/1.65 system-ui,sans-serif;color:#20302a;background:#fafbf8}h1{line-height:1.15;font-size:42px}h2{font-size:24px;margin-top:36px}a{color:#17613c}nav,footer{font-size:15px}header{border-bottom:1px solid #ccd9cf;margin-bottom:30px;padding-bottom:22px}.draft{padding:12px 18px;background:#fff2ce;font-size:15px;border-radius:6px}footer{border-top:1px solid #ccd9cf;margin-top:40px;padding-top:20px}</style>
+<body>
+<header>
+<nav>
+<a href="index.html">About C021</a> · <a href="privacy.html">Privacy</a>
+</nav>
+<h1>C021 privacy notice</h1>
+</header>
+<main>
+<p>This notice describes Codify’s C021 repository documentation publisher, a personal tool maintained by Jeremy Bradford.</p>
+<h2>Information used</h2>
+<p>C021 reads approved documentation from configured Git repositories and paths. Bundles include the selected text and source/revision references. It uses Google OAuth and the <code>drive.file</code> scope to check the authorized account’s identity, document location, ownership, permissions, content and revisions.</p>
+<h2>Purpose and sharing</h2>
+<p>C021 updates the owner’s approved Google Docs and verifies their contents. Google receives the uploaded documentation and the data API requests needed to perform these actions. The owner may add the Docs to private NotebookLM notebooks, where Google processes the sources for questions and learning materials. Google’s services are also subject to their own terms and privacy practices.</p>
+<p>The publisher checks for owner-only document permissions and refuses unexpected sharing. This does not prevent the owner from changing sharing afterward. The publisher does not invoke an AI model. Separate assistant-operated reviews and NotebookLM artifact generation are outside the publication command.</p>
+<h2>Storage and retention</h2>
+<p>The OAuth refresh grant is stored in an explicitly selected macOS Keychain item. Short-lived access credentials are used in memory. Local configuration holds account/client and destination identifiers. Publication state and receipts retain document IDs, revisions, hashes and operational results; they are designed to exclude access tokens and full Google response bodies.</p>
+<p>Selected files and generated bundles may remain locally. Docs and NotebookLM sources remain in the owner’s Google account until removed. There is no automatic retention or deletion schedule.</p>
+<h2>Owner controls</h2>
+<p>The owner can change the approved source list, stop publication, revoke Google authorization, and remove Docs or NotebookLM notebooks through those services. Revoking authorization does not remove existing uploads or local files.</p>
+<h2>Website hosting</h2>
+<p>This site is hosted by GitHub Pages. GitHub logs visitors’ IP addresses for security. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</a>. This site adds no analytics, forms, advertising or third-party scripts.</p>
+<p>Project information: <a href="https://github.com/jeremybrad/notebooklm-mcp">C021 repository</a>. Notice version: September 27, 2026.</p>
+</main>
+<footer>
+<a href="https://github.com/jeremybrad/notebooklm-mcp">Project repository</a> · <a href="privacy.html">Privacy notice</a>
+</footer>
+</body>
+</html>
