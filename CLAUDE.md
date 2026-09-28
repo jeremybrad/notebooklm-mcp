@@ -4,7 +4,9 @@
 
 **Repo-document publisher work:** start with [PUBLISHER.md](docs/doc_refresh/PUBLISHER.md).
 Use the offline plan with explicit repo/commit/map/receipt paths. Google OAuth
-provider code exists; actual enrollment and host acceptance are pending. Follow
+provider is enrolled, and the approved C014/C021 nightly job was cut over on
+2026-09-28 UTC after background acceptance. The first calendar-triggered result
+is tracked separately; see the current checkpoint in PUBLISHER.md. Follow
 [GOOGLE_OAUTH.md](docs/doc_refresh/GOOGLE_OAUTH.md). Do not apply cookie recovery:
 the old installed writer must be quiesced before shared auth repair or activation.
 No installation, canonical pull, credential change or scheduling follows from a
