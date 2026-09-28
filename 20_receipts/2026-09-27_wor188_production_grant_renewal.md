@@ -69,3 +69,38 @@ locked/denied native acceptance or full-publisher host acceptance. Those and
 single-writer promotion/cutover/first scheduled receipt remain on WOR-188/189.
 An ambiguous update would have stopped without automatic rollback; none was
 observed. No earlier grant was exported for restoration.
+
+## Separate approved production-item GUI-launchd acceptance
+
+Jeremy explicitly approved one background credential check after the foreground
+result. Owning decision: WOR-188 comment
+`700dd255-571a-4268-8f79-487e69097c9b` at 2026-09-28T00:15:06Z; WOR-189 crosslink
+`d9727147-589e-4284-8040-18ba15eaa280`.
+
+The prepared input hashes, private configuration modes and absence of competing
+renewal were rechecked. The existing legacy job was loaded but not running.
+One local, non-installed plist bootstrapped label
+`com.notebooklm-mcp.production-host-acceptance` into `gui/501`, with RunAtLoad,
+no KeepAlive/calendar/interval/watch trigger, and an exclusive single-use marker.
+Its child ran the same successful fresh-process check using the pinned Python
+and merged source. It read the actual existing grant with prompts disabled,
+refreshed once and verified the same identity with exactly drive.file.
+
+The worker passed in 0.659 seconds, exit 0 and zero stderr; launchd reported
+supervisor exit 0 with zero stderr. Access expiry was
+`2026-09-28T01:15:38.422565+00:00`; the stored issuance and unspecified refresh
+expiry were unchanged. No grant write, Doc operation or retry occurred.
+
+The exact temporary job was booted out successfully and verified absent. The
+legacy job's before/after launchctl output was byte-identical; its existing
+02:00 schedule and command remain unchanged. Evidence is retained in
+`~/LocalWork/Codex/c021-rollout/production-host-acceptance/`: proposal, prepared
+hashes/scripts/plist, approval/single-use records, bootstrap/terminal/bootout
+states, worker/acceptance outputs and host-summary.json. No file was installed
+under Library/LaunchAgents.
+
+This supersedes the preceding pending production-item GUI-launchd positive
+check only. Native locked/denied negative-path and full-publisher host acceptance,
+canonical/config promotion, single-writer cutover and first scheduled receipt
+remain open. Production login Keychain was never locked or modified to force
+failure; no recurring activation is implied by a one-shot success.
