@@ -1,0 +1,85 @@
+# WOR-189 — approved C021 public pages published
+
+Jeremy approved the GitHub Pages plan, including publication after his reviewed
+merge, in Codex task `01a0d946-629f-7580-9cdb-972daf9c3ab6`; owning decision
+WOR-189 comment `3d6c6413-b690-48f4-86c4-c7256f0dd954`. He then reported PR21
+merged and instructed continuation. Fresh fetch and GitHub verified merge
+`c50fc2ab84638fd62016a4250306c618012e4642` at 2026-09-27T23:48:00Z, with the
+complete tree equal to reviewed `4fcf6d714dedcd050d00b227f7c210ca89c2ca51`.
+PR21 Current status was reconciled to MERGED.
+
+The Pages endpoint initially returned 404. The approved create call set
+`build_type=workflow`; returned hostname was the intended default, no custom
+domain, public=true and HTTPS enforced. The new Pages workflow was already
+active. Existing CI stayed disabled_inactivity; other workflows were untouched.
+Exactly one manual dispatch named the merged SHA above:
+
+https://github.com/jeremybrad/notebooklm-mcp/actions/runs/36359968466
+
+Both package and deploy succeeded. The downloaded github-pages artifact archive
+contained exactly two regular files, index.html and privacy.html. Both contents
+matched the merged tree byte-for-byte. Live HTTPS requests returned 200 without
+redirect, with exactly the same bytes:
+
+- https://jeremybrad.github.io/notebooklm-mcp/ — 2042 bytes;
+  SHA-256 `e99a7ec88bd48b8e8d2efd3e5fa706b29425cae40b8f31ea7c8bb6d67b45ad19`.
+- https://jeremybrad.github.io/notebooklm-mcp/privacy.html — 3503 bytes;
+  SHA-256 `1cc321f3fe6cae84acd38b52850e3f9f31bdb372fe473714ae0c8881837d5ed3`.
+
+Browser inspection showed the published homepage, and its Privacy link opened
+the expected complete notice. No repository docs, receipts, runtime configuration
+or credentials were in the Pages artifact. Operational evidence is retained at
+`~/LocalWork/Codex/c021-public-pages/deployment/`: creation/final configuration,
+workflow state, run status, downloaded artifact, byte-verification results and
+homepage screenshot. This is actual publication evidence; Pages API status was
+null, so success is grounded in the run and live content checks instead.
+
+No Google Branding/audience/client/credential changes, canonical runtime pull,
+new source upload or nightly activation occurred in this deployment. Google
+acceptance of the hostname remains unverified. Durable grant and native
+production-item/locked-denied/full-publisher acceptance, recurring cutover and
+first scheduled receipt remain open. Website rollback is disabling the new Pages
+site; it must not change the Google grant, Docs, notebooks or legacy job.
+
+## Separate approved Branding save
+
+After website verification, Jeremy explicitly approved adding
+`jeremybrad.github.io` to Codify3030's authorized domains and setting the two
+published URLs as homepage/privacy links; owning decision WOR-189 comment
+`b6e3770f-32bf-4ea4-87ed-92bf6a8d2fd3` at 23:52:53Z. Google displayed
+“Branding changes saved!” with the intended values and Save/Discard disabled.
+Existing domain, clients, scopes, app name and contacts were preserved. Evidence:
+`deployment/branding-prepared.png` and `deployment/branding-saved.png` in the
+local evidence directory above. This confirms acceptance of the saved fields,
+not brand verification, production audience or a renewed/longer-lived grant.
+
+## Separate approved declared-scope cleanup
+
+The subsequent read-only scope inventory found 31 declarations: drive.file,
+4 other non-sensitive declarations and 26 sensitive Cloud declarations, with
+no restricted scopes. This inventory is not evidence that C021 holds those
+broader permissions; its OAuth request remains drive.file only. Jeremy approved
+removing the other 30 declarations, recorded in WOR-189 comment
+`6c1a6ab5-20f1-46ad-a2ff-7fe07d151e3c` at 23:54:55Z.
+
+The scope form was reduced to one non-sensitive drive.file row and empty
+sensitive/restricted tables, then saved. Google displayed “Data access changes
+saved!” and disabled Save/Discard. Before inventory and resulting screenshot
+are retained as deployment/declared-scopes-before.json and scopes-saved.png.
+Clients and grants were not deleted, changed or revoked. Scope declarations
+are not a revocation mechanism. The app remained in Testing after this action;
+production audience and renewal still require their separate decisions.
+
+## Separate approved OAuth production audience
+
+Jeremy then approved the action-time Publish app decision, recorded in WOR-189
+comment `ef13ae47-8e5d-4883-a3a8-5bcc6afbe8dd` at 23:57:43Z. Google's confirmation
+explained availability to any Google Account and verification conditions. After
+confirmation, the Audience page showed In production, External and Back to testing.
+Evidence: deployment/audience-before.png and audience-production.png.
+
+This supersedes the preceding Testing-state checkpoint only. Website, Branding,
+minimal declared scopes and production audience are complete. The pre-existing
+Testing grant's recorded lifetime was not changed or re-measured; no renewal,
+revocation or credential write occurred. Production status alone does not prove
+indefinite token life, verified branding or unattended publisher acceptance.
