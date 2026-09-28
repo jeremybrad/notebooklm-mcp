@@ -1,3 +1,10 @@
+## 2026-09-27
+
+- **docs(receipt): C014 artifact corrections** — WOR-191: record the approved
+  one-image/one-audio extension, original audio findings, verified source/access,
+  corrected diagram and qualified audio acceptance with local attestations.
+  Originals retained; see `20_receipts/2026-09-27_wor191_artifact_corrections.md`.
+
 # Changelog
 
 All notable changes to NotebookLM MCP Server are documented here.
