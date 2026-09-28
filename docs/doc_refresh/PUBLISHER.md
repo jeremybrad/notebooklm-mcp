@@ -4,9 +4,12 @@ WOR-188 connects the existing immutable Git bundle builder and publication-state
 library to native Google Docs/Drive HTTP requests and explicit batch operations.
 The explicit Google OAuth/Keychain provider and native HTTP path have passed a
 bounded C014 live pilot (PR #17), including Docs readback and a NotebookLM source
-citation. The new publisher is **not connected to the installed nightly job**.
-The pilot used an external Testing-mode OAuth app; it does not establish
-unattended long-term credential acceptance.
+citation. The approved C014/C021 cohort is connected to the installed 02:00 local job
+after the 2026-09-28 UTC cutover. Production-app renewal, no-dialog background
+credential access and a full two-repo background publication passed; see the
+[cutover receipt](../../20_receipts/2026-09-27_wor189_nightly_cutover.md).
+The first calendar-triggered result remains a separate observation. A successful
+refresh does not guarantee indefinite credential validity.
 NotebookLM cookies are not Google Docs OAuth credentials.
 
 ## Start with an offline plan
@@ -130,7 +133,7 @@ or prove current NotebookLM citations. State-derived observations are labeled as
 such. The synthetic canary demonstrated why these layers matter: new source
 citations used version B while an older overview still described version A.
 
-## What remains before live operation
+## Ownership and authority
 
 WOR-188 owns reviewed OAuth provisioning, approved account/client/scopes, secure
 credential storage and refresh lifetime, live adapter acceptance, and explicit
@@ -189,17 +192,35 @@ Enrollment is deliberate: inspect exact source files, approve their Google
 account/Doc/notebook destinations, create and bind those destinations through the
 existing enrollment procedure, then run an observed publication and verify the
 NotebookLM source and citations. A file-selection rule alone is not an upload
-approval. The proposed first wave is C014's two inspected journal documents and
+approval. The active first wave is C014's two inspected journal documents and
 C021's three publisher documents. C001 is held pending documentation corrections.
 
-The current installed 02:00 job still invokes the legacy `notebooklm-sync` route.
-Changing it requires a concrete host cutover after credential acceptance. A
-separate rclone primer mirror uses a different account and is not superseded by
-this rollout. This change installs neither a job nor a new background listener.
+The installed `com.notebooklm-mcp.refresh` GUI LaunchAgent now invokes
+`python -m notebooklm_mcp.doc_refresh.publication_cli publish --cohort ... --fetch`
+at 02:00 local, with `RunAtLoad=false` and `KeepAlive=false`. Its interpreter,
+source path, working directory and configuration paths are explicit; there is no
+shell activation or dependency installation during a run. The previous plist
+and legacy map are preserved. The separate rclone primer mirror uses a different
+account and remains unchanged.
 
-After activation, a nightly run should fetch, freeze revisions, validate the
-approved selection, update changed Docs under their existing IDs, verify remote
-readback and record success/failure. No-change runs still verify remote content.
+Active local files are under `~/.config/notebooklm-mcp/`: `publication-sources.yaml`,
+`publication-cohort.json`, `publication-provider.json`, `publication-map.yaml`,
+`publication-receipts/`, `publication.log` and `publication-error.log`. The original
+manual pilot map was renamed as an inactive backup; use only the promoted map.
+Do not revive old manual scripts or restore a backup over a pending operation.
+
+At cutover, the full background invocation verified both Docs remotely as
+unchanged, exited 0 and left no pending writes. That is background acceptance,
+not evidence of a calendar trigger. WOR-189 owns the first scheduled-run check;
+WOR-188 tracks provider acceptance. Observe `launchctl print
+"gui/$(id -u)/com.notebooklm-mcp.refresh"`, both logs and the latest terminal
+receipt together. A preflight error can return 2 without producing a receipt;
+a stale prior success must not hide that failure. The one-time first-run follow-up
+is not a permanent failure-alert service.
+
+A nightly run fetches and freezes revisions, validates the
+approved selection, updates changed Docs under their existing IDs, verifies remote
+readback and records success/failure. No-change runs still verify remote content.
 Monitor terminal receipts and stale last-success times; a process exit alone
 is not evidence that all Docs or NotebookLM sources are current. Credential
 revocation, pending state or unexpected edits stop publication for investigation.
@@ -211,3 +232,10 @@ an updated approved configuration. The manifest hash deliberately makes unnotice
 selection changes fail closed. Audio and graphics remain on demand and retain
 the source version they were generated from; updating a Doc does not regenerate
 them. No model inference is needed for deterministic publication.
+
+Contain a failed installed job by unloading only its exact label, preserving
+the active map, pending intents and receipts. Do not automatically restore the
+old cookie-based writer: it targets legacy destinations. Credential repair,
+reconciliation, restoring an old job or changing scope requires its applicable
+operator decision. The GUI agent depends on this Mac and user session being
+available; inspect receipts instead of assuming a missed/sleeping event ran.
