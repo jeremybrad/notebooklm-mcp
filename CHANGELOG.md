@@ -1,5 +1,13 @@
 ## 2026-09-28
 
+- **docs(receipt): five-repository documentation publication recorded** —
+  WOR-183: record merged C001/C003/C010 publication, complete NotebookLM source
+  observations and extension of the existing 02:00 cohort to five repositories.
+  The expanded cohort has no new scheduled-run acceptance in this receipt.
+  See `20_receipts/2026-09-28_wor183_five_repository_publication.md`.
+
+## 2026-09-28
+
 - **docs(receipt): retained documentation refreshed for priority rollout** —
   WOR-183: record successful C014 remote verification, C021 publication and
   complete NotebookLM source comparison after opening. Additional repository
