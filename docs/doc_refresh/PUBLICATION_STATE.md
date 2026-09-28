@@ -1,25 +1,32 @@
 # Offline publication state and recovery
 
-WOR-188 implements the approved next step after the synthetic live canary
-([PR #10](https://github.com/jeremybrad/notebooklm-mcp/pull/10)). The new module
-`doc_refresh/publication_state.py` is an opt-in library. It has **no default
-state path, CLI, HTTP transport, OAuth, installed-runner or scheduler wiring**.
-Tests use explicit temporary maps and fictional Docs. Existing jobs still use
-their old code path and are not changed by this module.
+WOR-188 introduced `doc_refresh/publication_state.py` after the synthetic live
+canary ([PR #10](https://github.com/jeremybrad/notebooklm-mcp/pull/10)). This opt-in
+library supplies state and recovery operations; it does not select a default
+state path, provide a CLI or HTTP/OAuth transport, or install a scheduled job.
+Tests use explicit temporary maps and fictional Docs. Importing the library
+does not change a running job.
 
 The later [explicit publisher](PUBLISHER.md) supplies a separate HTTP adapter,
-batch layer and command interface around this library. Its explicit credential
-provider has completed the bounded C014 pilot recorded in PR #17; no installed
-nightly job is connected to this library. Pilot acceptance is distinct from
-long-term unattended OAuth acceptance.
+batch layer and command interface around this library. The approved C014/C021
+cohort now uses that publisher through the installed 02:00 local job, following
+the [2026-09-28 UTC cutover](../../20_receipts/2026-09-27_wor189_nightly_cutover.md).
+Background publication passed; the first calendar-triggered result is tracked
+separately on WOR-189. Neither establishes indefinite credential validity or
+NotebookLM source/artifact freshness. PUBLISHER.md holds the operator workflow.
 
 ## Existing map, versioned extension
 
-The intended eventual location remains the existing
-`~/.config/notebooklm-mcp/notebook_map.yaml`. No second registry or lock file is
-introduced. This implementation never opens that default implicitly. A caller
-supplies a `MapStore(Path(...))`; writes require an already existing parent.
-Reading an absent map returns an in-memory empty notebooks mapping only.
+A caller supplies a `MapStore(Path(...))`; the library never opens a default
+map implicitly. The installed cohort uses
+`~/.config/notebooklm-mcp/publication-map.yaml`. The preserved
+`notebook_map.yaml` belongs to the retired legacy writer and is not the active
+publication map. The former manual pilot map was also retired at cutover,
+leaving one active map for the approved cohort. Use the active paths and
+recovery instructions in [PUBLISHER.md](PUBLISHER.md); never restore an old map
+over a pending operation. No separate state registry or lock file is created
+by this library. Writes require an already existing parent. Reading an absent
+map returns an in-memory empty notebooks mapping only.
 
 Each managed entry under `notebooks[repo]` retains its existing `notebook_id`
 and legacy `docs`/other fields. It adds `drive_publication`:
@@ -116,10 +123,11 @@ This is a local POSIX-filesystem implementation, tested on macOS. There is no
 unlocked fallback on unsupported systems. The containing directory must be
 trusted/stable; other entries in that directory share its cooperating lock.
 No advisory lock or check-then-replace can make an **uncooperative** writer safe.
-The old installed writer and any process bypassing this protocol must be
-quiesced before real activation. The current legacy map save remains unchanged;
-this module is not deployed concurrently with it. Filesystem locking/rename
-semantics must be validated on the eventual host before activation.
+Any prior writer or process bypassing this protocol must be quiesced before
+activation. The approved Mac cutover unloaded the legacy job and retired the
+manual map before activating the publisher; legacy map bytes were preserved.
+The separate rclone primer mirror remains unchanged. Another host requires its
+own filesystem and execution-context acceptance before activation.
 
 ## Freshness is per layer and explicit set
 
@@ -133,10 +141,12 @@ matches the live canary: new citations used B while the initial overview still
 described A. Generation, current citations and unattended refresh are different
 observations; no nightly guarantees follow from an interactive canary.
 
-## Remaining operational decisions
+## Operational acceptance and rollout scope
 
-Future activation still requires reviewed Google data OAuth provisioning and
-live account/scopes/transport acceptance, a nonempty-adoption decision if needed,
-real-source authorization, host/filesystem acceptance and existing writer/mirror
-cutover. Credentials, installed jobs and the actual user map were not touched to
-develop or test this module. Jeremy remains sole merger.
+Initial development and synthetic tests did not provision credentials or
+activate jobs. The later approved C014/C021 rollout completed OAuth enrollment
+and renewal, real-source publication, background host acceptance and the
+single-writer cutover recorded above. WOR-189 owns the first scheduled-run
+observation; WOR-191 owns NotebookLM source and artifact acceptance. New sources,
+destinations, credentials or runtime changes still need their applicable
+operator decision. Jeremy remains sole merger.

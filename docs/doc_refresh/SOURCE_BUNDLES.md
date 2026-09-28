@@ -3,7 +3,10 @@
 `repo-doc-bundle` prepares local Markdown and JSON receipts from the accepted
 `canonical_docs.yaml` selection rules. It does not publish to Drive or NotebookLM,
 read authentication, run models, modify notebook mappings, or activate scheduling.
-Stable native Google Docs remain the separately authorized eventual transport.
+The [explicit publisher](PUBLISHER.md) consumes these bundles and publishes the
+approved C014/C021 cohort to stable native Google Docs. That installed workflow
+is separate from this offline command; running the bundler grants no upload or
+activation authority.
 
 ## One repository or a batch
 
@@ -80,5 +83,8 @@ usage errors exit 2. JSON stdout names completed artifact paths on success.
 
 Generated primers stay owned by C010. An untracked `PROJECT_PRIMER.md` is absent
 from a Git snapshot; this command does not regenerate or silently import it.
-Live same-ID Docs updates, NotebookLM refresh/citation checks and the old nightly
-writer/mirror cutover remain separate WOR-188/WOR-189 work.
+The approved nightly publisher cutover is recorded in the
+[cutover receipt](../../20_receipts/2026-09-27_wor189_nightly_cutover.md), with active
+paths and recovery guidance in [PUBLISHER.md](PUBLISHER.md). The separate primer
+mirror remains unchanged. Local bundle generation, verified Docs publication,
+NotebookLM source freshness and artifact accuracy remain distinct observations.
