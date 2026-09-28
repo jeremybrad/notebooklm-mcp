@@ -8,8 +8,10 @@ citation. The approved C014/C021 cohort is connected to the installed 02:00 loca
 after the 2026-09-28 UTC cutover. Production-app renewal, no-dialog background
 credential access and a full two-repo background publication passed; see the
 [cutover receipt](../../20_receipts/2026-09-27_wor189_nightly_cutover.md).
-The first calendar-triggered result remains a separate observation. A successful
-refresh does not guarantee indefinite credential validity.
+The first calendar-triggered publication passed on 2026-09-28 at 02:00
+America/Denver; see the [dated first-run acceptance](../../20_receipts/2026-09-28_wor189_first_scheduled_publication.md).
+C021 source content was separately verified after opening NotebookLM. This does
+not establish unattended ingestion or indefinite credential validity.
 NotebookLM cookies are not Google Docs OAuth credentials.
 
 ## Start with an offline plan
@@ -209,14 +211,28 @@ Active local files are under `~/.config/notebooklm-mcp/`: `publication-sources.y
 manual pilot map was renamed as an inactive backup; use only the promoted map.
 Do not revive old manual scripts or restore a backup over a pending operation.
 
-At cutover, the full background invocation verified both Docs remotely as
-unchanged, exited 0 and left no pending writes. That is background acceptance,
-not evidence of a calendar trigger. WOR-189 owns the first scheduled-run check;
-WOR-188 tracks provider acceptance. Observe `launchctl print
+At cutover, the separate background acceptance invocation verified both Docs
+as unchanged. The first calendar-triggered run on 2026-09-28 began at
+08:00:07Z and completed at 08:00:15Z (02:00 America/Denver), with exit 0,
+two remote verifications, empty stderr and no pending operation. C014 needed
+no write; C021 changed. WOR-189 records that scheduled result separately from
+the earlier manual background test.
+
+At 08:26 UTC, C021's source viewer matched the scheduled bundle's three document
+revisions and complete text after whitespace normalization. Opening the source
+displayed a freshness check; no manual Sync was clicked. This establishes
+content current after opening, not independently unattended NotebookLM ingestion.
+The local source observation was updated for that exact bundle only. C014 retains
+its prior same-hash source observation and two corrected artifact observations;
+the [artifact receipt](../../20_receipts/2026-09-27_wor191_artifact_corrections.md)
+records the diagram's acceptance and the audio's qualified explanatory use.
+These are dated observations, not perpetual freshness claims.
+
+For later runs, inspect `launchctl print
 "gui/$(id -u)/com.notebooklm-mcp.refresh"`, both logs and the latest terminal
 receipt together. A preflight error can return 2 without producing a receipt;
-a stale prior success must not hide that failure. The one-time first-run follow-up
-is not a permanent failure-alert service.
+a stale prior success must not hide that failure. The one-time first-run
+follow-up completed; it is not a permanent failure-alert service.
 
 A nightly run fetches and freezes revisions, validates the
 approved selection, updates changed Docs under their existing IDs, verifies remote
