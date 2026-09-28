@@ -1,3 +1,10 @@
+## 2026-09-28
+
+- **docs(operations): first scheduled publication accepted** — Record the first
+  successful C014/C021 calendar run and C021 source verification after opening,
+  with a version-bound local observation and explicit ingestion limits.
+  See `20_receipts/2026-09-28_wor189_first_scheduled_publication.md`.
+
 ## 2026-09-27
 
 - **docs(receipt): C014 artifact corrections** — WOR-191: record the approved

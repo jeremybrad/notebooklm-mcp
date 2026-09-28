@@ -5,12 +5,15 @@
 **Repo-document publisher work:** start with [PUBLISHER.md](docs/doc_refresh/PUBLISHER.md).
 Use the offline plan with explicit repo/commit/map/receipt paths. Google OAuth
 provider is enrolled, and the approved C014/C021 nightly job was cut over on
-2026-09-28 UTC after background acceptance. The first calendar-triggered result
-is tracked separately; see the current checkpoint in PUBLISHER.md. Follow
+2026-09-28 UTC after background acceptance. The first calendar-triggered
+publication passed on September 28 at 02:00 America/Denver. C021 source content
+was separately verified after opening NotebookLM; unattended ingestion is not
+established. See the dated acceptance evidence in PUBLISHER.md. Follow
 [GOOGLE_OAUTH.md](docs/doc_refresh/GOOGLE_OAUTH.md). Do not apply cookie recovery:
 the old installed writer must be quiesced before shared auth repair or activation.
 No installation, canonical pull, credential change or scheduling follows from a
-publisher code merge. Current ownership and remaining activation work: WOR-188/189.
+publisher code merge. Current operational evidence: WOR-189; source/artifact
+acceptance: WOR-191; operator documentation: WOR-192.
 
 **Auth dead?** Run `notebooklm-mcp-auth`, restart Claude Code, verify with `notebook_list()`. See [Troubleshooting](./docs/TROUBLESHOOTING.md) for full recovery steps.
 
