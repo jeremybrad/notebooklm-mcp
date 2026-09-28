@@ -1,5 +1,13 @@
 ## 2026-09-28
 
+- **docs(receipt): retained documentation refreshed for priority rollout** —
+  WOR-183: record successful C014 remote verification, C021 publication and
+  complete NotebookLM source comparison after opening. Additional repository
+  enrollment is outside this receipt's execution scope.
+  See `20_receipts/2026-09-28_wor183_priority_documentation_publication.md`.
+
+## 2026-09-28
+
 - **docs(operations): first scheduled publication accepted** — Record the first
   successful C014/C021 calendar run and C021 source verification after opening,
   with a version-bound local observation and explicit ingestion limits.
