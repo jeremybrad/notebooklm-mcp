@@ -67,7 +67,7 @@ Reads require a `text/markdown` file, complete media bytes and coherent strong E
 before/after the read. Drive v2 supplies the file ETag; v3 supplies media readback.
 There are no redirects, cookies, ambient credentials or automatic retries.
 
-Changed publication records pending intent before one media PATCH to the same
+Changed publication records pending intent before one media PUT to the same
 file ID, using the inspected ETag in `If-Match`, then verifies complete byte
 readback before promoting state. A no-change run still checks remote bytes but
 makes no upload or map update. Manual content edits refuse. Point-in-time
@@ -103,3 +103,5 @@ References: [Drive uploads](https://developers.google.com/workspace/drive/api/gu
 [v2 file ETag](https://developers.google.com/workspace/drive/api/reference/rest/v2/files),
 [v2 update](https://developers.google.com/workspace/drive/api/reference/rest/v2/files/update),
 [source behavior](https://support.google.com/gemininotebook/answer/16215270?hl=en).
+
+The v2 media-update method is PUT, as specified by [files.update](https://developers.google.com/workspace/drive/api/reference/rest/v2/files/update). The October 1 synthetic PATCH attempt returned HTTP 404; live conditional enforcement remains unqualified until a separately cleared same-file test.

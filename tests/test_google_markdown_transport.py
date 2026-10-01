@@ -11,15 +11,18 @@ from notebooklm_mcp.doc_refresh.google_markdown_transport import GoogleMarkdownT
 
 
 class API:
-    def __init__(self): self.content = b'# Original\r\n'; self.etag = '"one"'; self.writes = []; self.changed = False; self.oversized = False
+    def __init__(self): self.content = b'# Original\r\n'; self.etag = '"one"'; self.writes = []; self.changed = False; self.oversized = False; self.race_on_upload = False
     def handle(self, request):
         assert request.headers.get('cookie') is None
         path = request.url.path
         if path.endswith('/about'): return httpx.Response(200, json={'user': {'permissionId': 'owner', 'emailAddress': 'fixture@example.invalid'}})
         if path.endswith('/permissions'): return httpx.Response(200, json={'permissions': [{'id': 'owner', 'type': 'user', 'role': 'owner', 'emailAddress': 'fixture@example.invalid', 'deleted': False}]})
         if path == '/drive/v2/files/file_1': return httpx.Response(200, json={'id': 'file_1', 'etag': self.etag})
-        if request.method == 'PATCH':
+        # Drive v2 files.update upload contract: PUT (Google reference), not v3 PATCH.
+        if path == '/upload/drive/v2/files/file_1':
+            if request.method != 'PUT': return httpx.Response(404)
             self.writes.append(request)
+            if self.race_on_upload: self.etag = '"concurrent"'
             if request.headers['if-match'] != self.etag: return httpx.Response(412)
             self.content = request.content; self.etag = '"two"'; return httpx.Response(200, json={'id': 'file_1'})
         if request.url.params.get('alt') == 'media':
@@ -44,6 +47,8 @@ def test_exact_media_read_and_conditional_write():
         assert t.read('file_1').content==b'# Correction\n'
     assert len(api.writes)==1 and api.writes[0].headers['if-match']=='"one"'
     assert api.writes[0].url.path=='/upload/drive/v2/files/file_1'
+    assert api.writes[0].method == 'PUT'
+    assert api.writes[0].url.params['uploadType'] == 'media'
 
 
 def test_unqualified_update_refuses_before_request():
@@ -67,3 +72,15 @@ def test_stale_precondition_refuses_before_upload():
         old=t.read('file_1'); api.etag='"manual"'
         with pytest.raises(TransportError): t.write('file_1',b'new',old.etag)
     assert api.writes==[]
+
+
+def test_put_precondition_race_preserves_content_without_retry():
+    api = API(); original = api.content
+    with transport(api, 'synthetic negative-precondition evidence') as t:
+        snap = t.read('file_1'); api.race_on_upload = True
+        with pytest.raises(TransportError, match='http_rejected'):
+            t.write('file_1', b'# Correction\n', snap.etag)
+    assert len(api.writes) == 1
+    assert api.writes[0].method == 'PUT'
+    assert api.writes[0].headers['if-match'] == snap.etag
+    assert api.content == original and api.etag == '"concurrent"'
