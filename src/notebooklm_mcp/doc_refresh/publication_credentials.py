@@ -151,11 +151,16 @@ def check_grant(config: PublisherConfig, grant: StoredGrant, *, require_pin=True
         raise ProviderError('grant_mismatch')
 
 
-def transport_factory(config: PublisherConfig):
+def transport_factory(config: PublisherConfig, *, individual=False, conditional_write_evidence=None):
     """Construct a lazy factory. No credential I/O until a specific job is entered."""
     @contextmanager
     def factory(job, document_id):
-        destination = config.destinations.get(job.repo.absolute().name)
+        if individual:
+            from .individual_publication import document_key
+            name = document_key(job.source)
+        else:
+            name = job.repo.absolute().name
+        destination = config.destinations.get(name)
         if destination is None:
             raise ProviderError('destination_unconfigured')
         if destination.document_id != document_id:
@@ -181,6 +186,12 @@ def transport_factory(config: PublisherConfig):
             failure = 'oauth_' + error.code if error.code in ERROR_CODES else 'refresh_failed'
         if failure:
             raise ProviderError(failure)
-        with GoogleDocsTransport(lease, grant.account, destination) as transport:
-            yield transport
+        if individual:
+            from .google_markdown_transport import GoogleMarkdownTransport
+            transport = GoogleMarkdownTransport(lease, grant.account, destination,
+                conditional_write_evidence=conditional_write_evidence)
+        else:
+            transport = GoogleDocsTransport(lease, grant.account, destination)
+        with transport as active:
+            yield active
     return factory

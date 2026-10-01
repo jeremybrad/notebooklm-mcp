@@ -51,7 +51,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--snapshots", type=Path, help="Offline plan only: complete native Docs JSON by repository name")
     parser.add_argument("--credentials-config", type=Path,
                         help="Live modes only: explicit nonsecret OAuth/Keychain configuration")
+    parser.add_argument("--individual", action="store_true", help="Opt-in original Markdown sources; explicit --repo and --manifest only")
+    parser.add_argument("--conditional-write-evidence", help="Individual publish only: reference to separately reviewed live negative-precondition proof")
     args = parser.parse_args(argv)
+    if args.individual and (args.cohort or args.snapshots or not args.manifest):
+        parser.error("Individual mode requires explicit --repo/--manifest and no cohort/snapshots")
+    if args.conditional_write_evidence and (not args.individual or args.mode != "publish"):
+        parser.error("Conditional evidence is only for individual publish")
+    if args.individual and args.mode == "publish" and not args.conditional_write_evidence:
+        parser.error("Individual publish requires separately reviewed conditional-write evidence")
     if args.fetch and (not args.cohort or args.mode not in {"plan", "publish"}):
         parser.error("--fetch requires cohort plan or publish")
     if args.cohort and args.manifest:
@@ -91,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
                     "ref_freshness": cohort.freshness,
                     "manifest_sha256": cohort.manifest_sha256,
                 }
+        elif args.individual:
+            from .individual_batch import execute as execute_individual
+            factory = transport_factory(config, individual=True,
+                conditional_write_evidence=args.conditional_write_evidence) if config else None
+            result = execute_individual(args.mode, [Job(Path(path), revision) for path, revision in args.repo],
+                MapStore(args.map_path), args.receipts, manifest_path=args.manifest,
+                transport_factory=factory, config=config)
         else:
             factory = transport_factory(config) if config is not None else None
             result = execute(args.mode, [Job(Path(path), revision) for path, revision in args.repo],
@@ -101,6 +116,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except CohortError as error:
         print("Cohort preflight failed: " + str(error), file=sys.stderr)
+        return 2
+    except ValueError:
+        print("Invalid publication inputs", file=sys.stderr)
         return 2
     except ReceiptError:
         print("Receipt persistence failed; no successful run is claimed", file=sys.stderr)

@@ -123,6 +123,8 @@ class GoogleDocsTransport:
     additionally consume its 20-second inactivity limit). The explicit test
     transport and clock are trusted dependency-injection seams, not CLI options.
     """
+    MIME_TYPE = 'application/vnd.google-apps.document'
+
     def __init__(self, lease: CredentialLease, account: AccountExpectation,
                  destination: DestinationExpectation, *,
                  http_transport: httpx.BaseTransport | None = None,
@@ -262,7 +264,7 @@ class GoogleDocsTransport:
         owners = metadata.get('owners')
         capabilities = metadata.get('capabilities')
         if (metadata.get('id') != self._destination.document_id
-                or metadata.get('mimeType') != 'application/vnd.google-apps.document'
+                or metadata.get('mimeType') != self.MIME_TYPE
                 or metadata.get('trashed') is not False
                 or metadata.get('parents') != [self._destination.parent_id]
                 or not isinstance(capabilities, dict) or capabilities.get('canEdit') is not True
