@@ -5,11 +5,12 @@ all items completes before the first credential access. Failures stop the batch.
 """
 from dataclasses import dataclass
 from pathlib import Path
+import os
 import re
 import uuid
 
 from . import individual_publication as state
-from .publication_batch import _ReceiptSink, _now
+from .publication_batch import Job, _ReceiptSink, _now
 from .publication_state import StateError
 from .source_bundle import build_bundle
 
@@ -24,8 +25,10 @@ class DocumentJob:
 def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=None, config=None):
     if mode not in {'plan', 'status', 'publish', 'reconcile'} or manifest_path is None:
         raise StateError('Explicit individual mode and manifest required')
-    if (not jobs or len({str(j.repo.absolute()) for j in jobs}) != len(jobs)
-            or len({j.repo.absolute().name for j in jobs}) != len(jobs)):
+    # Match build_bundle's lexical normalization before deriving any identity.
+    jobs = [Job(Path(os.path.abspath(j.repo)), j.revision) for j in jobs]
+    if (not jobs or len({str(j.repo) for j in jobs}) != len(jobs)
+            or len({j.repo.name for j in jobs}) != len(jobs)):
         raise StateError('Unique explicit repositories required')
     run_id = uuid.uuid4().hex
     sink = _ReceiptSink(receipt_dir, run_id, [j.repo for j in jobs])
@@ -41,7 +44,7 @@ def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=
                 if store.path.resolve().is_relative_to(job.repo.resolve()):
                     raise StateError('Publication map must be outside source repo')
                 artifact = build_bundle(job.repo, job.revision, manifest_path=manifest_path)
-                bound = snapshot.data['notebooks'].get(job.repo.absolute().name, {}).get(state.KEY, {})
+                bound = snapshot.data['notebooks'].get(job.repo.name, {}).get(state.KEY, {})
                 selected_paths = {source.path for source in artifact.documents}
                 if mode in {'publish', 'reconcile'} and set(bound) - selected_paths:
                     raise StateError('Previously bound original missing from inspected selection')

@@ -120,7 +120,8 @@ def test_batch_cli_offline_plan_requires_optin_and_no_cloud(selected, tmp_path, 
     with pytest.raises(SystemExit): main([a if a!='plan' else 'publish' for a in args])
 
 
-def test_distinct_checkouts_with_same_basename_refuse_before_any_write(selected, tmp_path):
+@pytest.mark.parametrize('alias', [False, True])
+def test_distinct_checkouts_with_same_basename_refuse_before_any_write(selected, tmp_path, alias):
     from contextlib import contextmanager
     from notebooklm_mcp.doc_refresh.individual_batch import execute
     from notebooklm_mcp.doc_refresh.publication_batch import Job
@@ -158,7 +159,7 @@ def test_distinct_checkouts_with_same_basename_refuse_before_any_write(selected,
     before = store.path.read_bytes()
     with pytest.raises(StateError):
         execute('publish', [Job(root, git(root, 'rev-parse', 'HEAD')),
-                Job(second, git(second, 'rev-parse', 'HEAD'))], store, tmp_path,
+                Job(second / 'a' / '..' if alias else second, git(second, 'rev-parse', 'HEAD'))], store, tmp_path,
                 manifest_path=manifest, transport_factory=factory)
     assert calls == [] and all(r.writes == 0 for r in remotes.values())
     assert store.path.read_bytes() == before
@@ -182,3 +183,34 @@ def test_invalid_conditional_evidence_refuses_before_keychain(selected, tmp_path
         with factory(DocumentJob(root, git(root, 'rev-parse', 'HEAD'), source), 'synthetic-doc'):
             pytest.fail('invalid qualification must not construct transport')
     assert calls == []
+
+
+@pytest.mark.parametrize('alias', [False, True])
+def test_omitted_bound_original_refuses_with_normalized_identity(selected, tmp_path, alias):
+    from contextlib import contextmanager
+    from notebooklm_mcp.doc_refresh.individual_batch import execute
+    from notebooklm_mcp.doc_refresh.publication_batch import Job
+    root, manifest = selected
+    artifact = build_bundle(root, 'HEAD', manifest_path=manifest)
+    store = MapStore(tmp_path / 'map.yaml')
+    for i, source in enumerate(artifact.documents):
+        bind_empty(store, source, 'notebook_1', Snapshot('file_' + str(i), '"empty"', b''))
+    narrowed = yaml.safe_load(manifest.read_text())
+    narrowed['repo_overrides'][root.name]['extra_docs'] = narrowed['repo_overrides'][root.name]['extra_docs'][:1]
+    manifest.write_text(yaml.safe_dump(narrowed))
+    calls = []
+    @contextmanager
+    def factory(job, file_id):
+        calls.append(file_id)
+        remote = Remote()
+        remote.snapshot = Snapshot(file_id, '"empty"', b'')
+        class Transport:
+            def read(self, identity): return remote.snapshot
+            def write(self, identity, content, etag):
+                remote.snapshot = Snapshot(file_id, '"new"', content)
+        yield Transport()
+    before = store.path.read_bytes()
+    result = execute('publish', [Job(root / 'a' / '..' if alias else root, artifact.receipt['commit'])],
+                     store, tmp_path, manifest_path=manifest, transport_factory=factory)
+    assert result['exit_code'] == 1 and calls == []
+    assert store.path.read_bytes() == before
