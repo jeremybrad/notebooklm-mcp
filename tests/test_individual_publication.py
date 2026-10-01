@@ -118,3 +118,67 @@ def test_batch_cli_offline_plan_requires_optin_and_no_cloud(selected, tmp_path, 
     assert len(result['items'])==2 and all(i['action']=='unbound' for i in result['items'])
     assert not (tmp_path/'map.yaml').exists()
     with pytest.raises(SystemExit): main([a if a!='plan' else 'publish' for a in args])
+
+
+def test_distinct_checkouts_with_same_basename_refuse_before_any_write(selected, tmp_path):
+    from contextlib import contextmanager
+    from notebooklm_mcp.doc_refresh.individual_batch import execute
+    from notebooklm_mcp.doc_refresh.publication_batch import Job
+    root, manifest = selected
+    second = tmp_path / 'other' / root.name
+    second.parent.mkdir()
+    subprocess.run(['git', 'clone', '-q', str(root), str(second)], check=True)
+    git(second, 'config', 'user.name', 'Fixture')
+    git(second, 'config', 'user.email', 'fixture@example.invalid')
+    (second / 'a/reference.md').write_text('# Other checkout original\n')
+    git(second, 'add', '.'); git(second, 'commit', '-qm', 'different original')
+    artifact = build_bundle(root, 'HEAD', manifest_path=manifest)
+    store = MapStore(tmp_path / 'map.yaml')
+    remotes = {}
+    for i, source in enumerate(artifact.documents):
+        remote = Remote()
+        remote.snapshot = replace(remote.snapshot, file_id='file_' + str(i))
+        # Remote methods below deliberately enforce each individual identity.
+        remotes[remote.snapshot.file_id] = remote
+        bind_empty(store, source, 'notebook_1', remote.snapshot)
+    calls = []
+    @contextmanager
+    def factory(job, file_id):
+        calls.append(file_id)
+        remote = remotes[file_id]
+        class Transport:
+            def read(self, identity):
+                assert identity == file_id
+                return remote.snapshot
+            def write(self, identity, raw, etag):
+                assert identity == file_id and etag == remote.snapshot.etag
+                remote.snapshot = Snapshot(file_id, '"updated"', raw)
+                remote.writes += 1
+        yield Transport()
+    before = store.path.read_bytes()
+    with pytest.raises(StateError):
+        execute('publish', [Job(root, git(root, 'rev-parse', 'HEAD')),
+                Job(second, git(second, 'rev-parse', 'HEAD'))], store, tmp_path,
+                manifest_path=manifest, transport_factory=factory)
+    assert calls == [] and all(r.writes == 0 for r in remotes.values())
+    assert store.path.read_bytes() == before
+
+
+@pytest.mark.parametrize('evidence', [' ', 'x' * 1025, 'proof\n'])
+def test_invalid_conditional_evidence_refuses_before_keychain(selected, tmp_path, monkeypatch, evidence):
+    from notebooklm_mcp.doc_refresh import publication_credentials as provider
+    from notebooklm_mcp.doc_refresh.individual_batch import DocumentJob
+    from tests.test_publication_credentials import configuration
+    root, manifest = selected
+    source = build_bundle(root, 'HEAD', manifest_path=manifest).documents[0]
+    config = provider.load_config(configuration(tmp_path, repo_name=document_key(source)))
+    calls = []
+    def keychain(*args):
+        calls.append('keychain')
+        raise provider.ProviderError('configuration_invalid')
+    monkeypatch.setattr(provider, 'KeychainStore', keychain)
+    factory = provider.transport_factory(config, individual=True, conditional_write_evidence=evidence)
+    with pytest.raises(provider.ProviderError):
+        with factory(DocumentJob(root, git(root, 'rev-parse', 'HEAD'), source), 'synthetic-doc'):
+            pytest.fail('invalid qualification must not construct transport')
+    assert calls == []

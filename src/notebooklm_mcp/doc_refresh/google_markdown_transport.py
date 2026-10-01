@@ -18,15 +18,18 @@ from .google_docs_transport import (
 from .individual_publication import Snapshot, StateError, MAX_CONTENT_BYTES, _etag
 
 
+def valid_conditional_evidence(value):
+    """Pure structural check; a reference never verifies live qualification."""
+    return value is None or (isinstance(value, str) and bool(value.strip())
+        and len(value) <= 1024 and all(ord(c) >= 32 for c in value))
+
+
 class GoogleMarkdownTransport(GoogleDocsTransport):
     MIME_TYPE = 'text/markdown'
 
     def __init__(self, *args, conditional_write_evidence=None, **kwargs):
         self._conditional_write_evidence = conditional_write_evidence
-        if conditional_write_evidence is not None and (
-            not isinstance(conditional_write_evidence, str) or not conditional_write_evidence.strip()
-            or len(conditional_write_evidence) > 1024
-            or any(ord(c) < 32 for c in conditional_write_evidence)):
+        if not valid_conditional_evidence(conditional_write_evidence):
             raise TransportError('invalid_configuration')
         super().__init__(*args, **kwargs)
 

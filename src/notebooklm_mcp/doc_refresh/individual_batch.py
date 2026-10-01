@@ -24,7 +24,8 @@ class DocumentJob:
 def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=None, config=None):
     if mode not in {'plan', 'status', 'publish', 'reconcile'} or manifest_path is None:
         raise StateError('Explicit individual mode and manifest required')
-    if not jobs or len({str(j.repo.absolute()) for j in jobs}) != len(jobs):
+    if (not jobs or len({str(j.repo.absolute()) for j in jobs}) != len(jobs)
+            or len({j.repo.absolute().name for j in jobs}) != len(jobs)):
         raise StateError('Unique explicit repositories required')
     run_id = uuid.uuid4().hex
     sink = _ReceiptSink(receipt_dir, run_id, [j.repo for j in jobs])

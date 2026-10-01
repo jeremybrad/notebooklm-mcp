@@ -156,6 +156,10 @@ def transport_factory(config: PublisherConfig, *, individual=False, conditional_
     @contextmanager
     def factory(job, document_id):
         if individual:
+            from .google_markdown_transport import valid_conditional_evidence
+            if not valid_conditional_evidence(conditional_write_evidence):
+                raise ProviderError('configuration_invalid')
+        if individual:
             from .individual_publication import document_key
             name = document_key(job.source)
         else:

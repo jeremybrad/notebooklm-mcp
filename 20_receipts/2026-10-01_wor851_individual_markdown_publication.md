@@ -36,3 +36,7 @@ google_docs_transport.py, google_markdown_transport.py, publication_credentials.
 individual_batch.py, publication_cli.py; associated fictional tests and
 `docs/doc_refresh/INDIVIDUAL_SOURCES.md`. Detailed validation and independent
 review/triage evidence are recorded on the PR at their exact head/base.
+
+## Independent review repair
+
+Guarded Grok 4.7 R2 at `2089e1f` returned R2-F1 P2 (same-basename checkout aliasing), R2-F2 P3 (invalid evidence checked after credentials), R2-F3 P3 (changelog chronology). All verified locally: same-basename synthetic multi-checkout test failed to refuse; three malformed references accessed a mocked Keychain; changelog inspection showed misdated prior evidence. Repairs refuse duplicate logical repository names before any preparation, share one pure evidence predicate before credentials and transport, and restore date grouping. Four regression cases ran RED before repair, GREEN after repair. Original severities and history remain on PR #30; repaired head awaits independent re-review. No cloud, installed runtime or source membership change.

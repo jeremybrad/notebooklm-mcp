@@ -1,8 +1,8 @@
-## 2026-09-28
-
 ## 2026-10-01
 
 - Add explicit individual original-Markdown publication with stable per-path bindings, exact readback and pending recovery (WOR-851); live qualification/enrollment remain separate.
+
+## 2026-09-28
 
 - **docs(receipt): five-repository documentation publication recorded** —
   WOR-183: record merged C001/C003/C010 publication, complete NotebookLM source
