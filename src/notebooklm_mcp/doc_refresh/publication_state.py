@@ -88,6 +88,9 @@ def validate_map(data: Any) -> None:
         _label(repo)
         if not isinstance(record, dict):
             raise StateError('Repository entry must be a mapping')
+        if 'drive_documents' in record:
+            from .individual_publication import validate_documents
+            validate_documents(record, destinations)
         if KEY not in record:
             continue
         _label(record.get('notebook_id'))

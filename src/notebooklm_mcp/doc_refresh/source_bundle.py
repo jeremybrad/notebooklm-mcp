@@ -27,6 +27,7 @@ from .selection import get_exclusions, is_excluded, normalize_relpath, path_is_c
 class BundleArtifact:
     bundle: Bundle
     receipt: dict[str, Any]
+    documents: tuple[SourceText, ...] = ()
 
 
 def _git(repo: Path, *args: str) -> bytes:
@@ -154,7 +155,7 @@ def build_bundle(repo: Path, revision: str, *, manifest_path: Path | None = None
         "bundle_sha256": bundle.sha256, "artifact_id": f"sha256:{bundle.sha256}",
         "publication": {"drive_document_id": None, "notebook_id": None},
     }
-    return BundleArtifact(bundle, receipt)
+    return BundleArtifact(bundle, receipt, tuple(sources))
 
 
 def _write_identical_or_new(path: Path, content: bytes) -> None:
