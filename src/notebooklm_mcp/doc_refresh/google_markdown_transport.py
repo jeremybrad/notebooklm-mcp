@@ -1,7 +1,7 @@
 """Bounded original-Markdown Drive adapter, reusing the fixed OAuth/account checks.
 
 No creation, consent, refresh, enrollment or retry. Drive v2 provides the file
-ETag; media is downloaded through v3. Writes use v2 media PATCH plus If-Match.
+ETag; media is downloaded through v3. Writes use v2 media PUT plus If-Match.
 Documentation is not account-specific proof of conditional enforcement: callers
 must supply a reference to separately reviewed live negative-precondition evidence
 before writes. This is a trusted operator assertion, not parsed/verified evidence.
@@ -100,7 +100,7 @@ class GoogleMarkdownTransport(GoogleDocsTransport):
         except (StateError, UnicodeError): raise TransportError('planner_guard') from None
         self.preflight()
         if self._file_etag(file_id) != etag: raise TransportError('planner_guard')
-        raw = self._media('PATCH', 'https://www.googleapis.com/upload/drive/v2/files/' + quote(file_id, safe=''),
+        raw = self._media('PUT', 'https://www.googleapis.com/upload/drive/v2/files/' + quote(file_id, safe=''),
                           params={'uploadType': 'media', 'fields': 'id'}, content=content, etag=etag)
         try:
             value = json.loads(raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant)

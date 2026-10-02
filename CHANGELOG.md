@@ -1,5 +1,7 @@
 ## 2026-10-01
 
+- Correct individual Markdown Drive v2 uploads to PUT; the synthetic PATCH attempt returned 404. Live qualification remains pending.
+
 - Add explicit individual original-Markdown publication with stable per-path bindings, exact readback and pending recovery (WOR-851); live qualification/enrollment remain separate.
 
 ## 2026-09-28
