@@ -1,5 +1,9 @@
 ## 2026-10-02
 
+- Record the approved three-original C010 pilot: three owner-only Markdown files and notebook sources, complete source/citation checks within five minutes, zero-upload unchanged repeat and restored current selections. Wider rollout and changed-revision acceptance remain open. See `20_receipts/2026-10-02_three_document_original_pilot.md`.
+
+## 2026-10-02
+
 - Record the existing-file synthetic Markdown proof: stale ETag HTTP 412, same-ID B/C publication and normal-reopen source/citation checks, zero-upload repeat, and restoration of Jeremy's current notebook baseline. No runtime replacement or real-original rollout. See `20_receipts/2026-10-02_existing_synthetic_file_proof.md`.
 
 ## 2026-10-01
