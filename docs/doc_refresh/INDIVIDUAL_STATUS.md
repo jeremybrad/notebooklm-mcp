@@ -29,13 +29,15 @@ a successful original cannot hide a failed or missing sibling.
 | Newer failed or partial receipt | latest_run_failed_or_partial; earlier success remains historical |
 | Bound original absent from selection | original_missing_from_selection |
 | No matching receipt | receipt_missing |
-| Failed preflight with no items | unattributed_preflight_failure; no invented affected source |
+| Failed preflight with no items | run-level unattributed_preflight_failure, including an empty view; no invented affected source |
 
 `--stale-after-seconds POSITIVE_INTEGER` is an explicit caller-selected comparison
 bound, with no active default. It compares the last per-item remote publication
 success to `--now`; without it receipt freshness is unknown. Retry limits and
 reminder intervals remain unresolved under WOR-849 and are not implemented.
-Plan/status success receipts never count as publication success. A partial batch
+Plan/status success receipts never count as publication success. Reconciliation
+that verifies the old base does not advance publication success or its age.
+Equal receipt timestamps preserve any failure at that timestamp. A partial batch
 retains successful item history but still surfaces the batch failure.
 
 Existing individual observations contain a hash, source ID and evidence reference,
@@ -50,7 +52,12 @@ older artifact state are unknown: these existing receipts do not attest schedule
 invocation or host exits before a receipt. Generic operation failures cannot
 reliably distinguish permission, credential or external-edit causes. Invalid,
 unreadable or oversized receipt inputs return exit 2 with a fixed message;
-missing matching evidence remains visible in otherwise valid output. Status
+a missing map returns exit 2, while an existing empty map exposes missing bindings.
+Receipt reads are bounded regular-file reads and reject symlinks. Known individual
+receipt families with unsupported versions or modes are refused. Other existing
+receipt families are outside this view and do not count as publication evidence;
+missing matching evidence remains visible in otherwise valid output. Errors go
+to stderr, separate from JSON output. Status
 attention is data, not a live monitor exit code. Identical explicit inputs produce
 identical output; no alert delivery or transition storage is introduced.
 
@@ -62,3 +69,10 @@ bounded reminders, host monitoring and installation require a later bounded
 release, agreed WOR-849 limits and chosen private destination. Live publication
 and independent review remain separate prerequisites; this slice does not close
 WOR-855.
+
+Historical failed preflights with no affected items remain in `run_problems`,
+with their recorded run identity and timestamp. They are not attributed to every
+source, and a later source success cannot establish which absent preflight inputs
+recovered. No unresolved failure is hidden simply because the view has no rows.
+A missing selected target leaves its NotebookLM observation unknown even if an
+older observation exists; staleness requires an actual target-hash comparison.

@@ -2,6 +2,9 @@
 from datetime import datetime, timezone
 import argparse
 import json
+import os
+import stat
+import sys
 import re
 from pathlib import Path
 
@@ -13,6 +16,8 @@ FORMAT = 'c021.individual-publication-batch.v1'
 
 
 def _time(value):
+    if not isinstance(value, str):
+        raise ValueError('String timestamp required')
     parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
     if parsed.tzinfo is None:
         raise ValueError('Aware timestamp required')
@@ -28,8 +33,13 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
     for receipt in receipts:
         if not isinstance(receipt, dict):
             raise ValueError('Invalid receipt')
-        if receipt.get('format') != FORMAT or receipt.get('mode') not in {'publish', 'reconcile'}:
-            continue
+        receipt_format = receipt.get('format')
+        if receipt_format != FORMAT:
+            if isinstance(receipt_format, str) and receipt_format.startswith('c021.individual-publication'):
+                raise ValueError('Unsupported individual receipt')
+            continue  # Other existing receipt families are outside this view.
+        if receipt.get('mode') not in {'plan', 'status', 'publish', 'reconcile'}:
+            raise ValueError('Invalid individual mode')
         if (not isinstance(receipt.get('items'), list)
                 or any(not isinstance(i, dict) for i in receipt['items'])
                 or receipt.get('status') not in {'success', 'failed'}):
@@ -37,8 +47,14 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
         stamp = _time(receipt['completed_at'])
         if stamp > clock:
             raise ValueError('Future receipt')
-        runs.append((stamp, receipt))
-    runs.sort(key=lambda pair: (pair[0], pair[1].get('run_id', '')))
+        if receipt['mode'] in {'publish', 'reconcile'}:
+            runs.append((stamp, receipt))
+    runs.sort(key=lambda pair: (pair[0], json.dumps(pair[1], sort_keys=True)))
+    run_problems = [{'code': 'unattributed_preflight_failure',
+                     'completed_at': run['completed_at'], 'run_id': run.get('run_id'),
+                     'next_owner': 'operator',
+                     'next_action': 'Inspect historical failed preflight; affected originals and recovery are unestablished.'}
+                    for _, run in runs if run['status'] == 'failed' and not run['items']]
     targets = {(s['repo'], s['path']): s for s in selected}
     for repo, record in notebooks.items():
         for path in record.get(KEY, {}):
@@ -51,9 +67,11 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
                    if item.get('repo') == repo and item.get('path') == path]
         relevant_runs = [(stamp, run) for stamp, run in runs
                          if any(i.get('repo') == repo for i in run.get('items', []))]
-        latest = history[-1] if history else None
+        latest = [h for h in history if h[0] == history[-1][0]] if history else []
         successes = [h for h in history if h[2].get('status') == 'success'
-                     and h[2].get('verification') == 'remote']
+                     and h[2].get('verification') == 'remote'
+                     and ((h[1]['mode'] == 'publish' and h[2].get('action') in {'replace_bytes', 'unchanged'})
+                          or (h[1]['mode'] == 'reconcile' and h[2].get('action') == 'verified_target'))]
         last_success = successes[-1][1]['completed_at'] if successes else None
         publication = 'unknown'
         observation = 'unknown'
@@ -71,18 +89,17 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
             if entry['pending']:
                 problems.append('pending_reconciliation')
             observed = entry['notebook']
-            if observed:
+            if observed and target is not None:
                 observation = ('recorded_hash_match' if target and observed['sha256'] == target['sha256']
                                else 'stale')
                 if observation == 'stale':
                     problems.append('notebook_observation_stale')
-        if latest and (latest[2].get('status') != 'success' or latest[1].get('status') != 'success'):
+        if any(h[2].get('status') != 'success' or h[1].get('status') != 'success' for h in latest):
             problems.append('latest_run_failed_or_partial')
-        if relevant_runs and relevant_runs[-1][1].get('status') != 'success':
+        if relevant_runs and any(run['status'] != 'success' for stamp, run in relevant_runs
+                                 if stamp == relevant_runs[-1][0]):
             if 'latest_run_failed_or_partial' not in problems:
                 problems.append('latest_run_failed_or_partial')
-        if any(run.get('status') != 'success' and not run.get('items') for _, run in runs):
-            problems.append('unattributed_preflight_failure')
         if not history:
             problems.append('receipt_missing')
         freshness = 'unknown'
@@ -111,7 +128,8 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
                                      if problems else 'Confirm observation mode and timestamp before claiming current usability.')})
     return {'format': 'c021.individual-status.v1', 'verification': 'local-recorded-only',
             'evaluated_at': now, 'stale_after_seconds': stale_after_seconds,
-            'aggregate': 'attention' if any(r['problems'] for r in rows) else 'unknown',
+            'aggregate': 'attention' if run_problems or any(r['problems'] for r in rows) else 'unknown',
+            'run_problems': run_problems,
             'canonical_doc_review': 'unknown', 'host_job_health': 'unknown',
             'older_artifact_state': 'unknown', 'items': rows}
 
@@ -140,18 +158,26 @@ def main(argv=None):
         # Read each explicitly selected receipt directory; never create a receipt or map.
         receipts = []
         for p in sorted(args.receipts.glob('*.json')):
-            if p.stat().st_size > 4 * 1024 * 1024:
+            fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+            with os.fdopen(fd, 'rb') as stream:
+                if p.is_symlink() or not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise ValueError('Regular receipt required')
+                raw = stream.read(4 * 1024 * 1024 + 1)
+            if len(raw) > 4 * 1024 * 1024:
                 raise ValueError('Oversize receipt')
-            value = json.loads(p.read_text())
+            value = json.loads(raw)
             if not isinstance(value, dict):
                 raise ValueError('Invalid receipt')
             receipts.append(value)
         if not args.receipts.is_dir():
             raise ValueError('Missing receipt directory')
-        result = reduce_status(selected, MapStore(args.map_path).read().data['notebooks'], receipts,
+        snapshot = MapStore(args.map_path).read()
+        if snapshot.raw is None:
+            raise ValueError('Missing map')
+        result = reduce_status(selected, snapshot.data['notebooks'], receipts,
                                now=args.now, stale_after_seconds=args.stale_after_seconds)
     except (OSError, ValueError, KeyError, TypeError):
-        print('Invalid or unavailable local status inputs')
+        print('Invalid or unavailable local status inputs', file=sys.stderr)
         return 2
     print(json.dumps(result, sort_keys=True, indent=2))
     return 0

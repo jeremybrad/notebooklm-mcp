@@ -12,8 +12,8 @@ HASH = 'a' * 64
 
 def inputs():
     selected = [{'repo': 'C099', 'path': 'a.md', 'sha256': HASH}]
-    entry = {'file_id': 'fictional_file', 'verified': {'sha256': HASH, 'etag': '"v1"',
-             'source': {'commit': 'b' * 40}}, 'pending': None, 'notebook': None}
+    entry = {'version': 1, 'file_id': 'fictional_file', 'verified': {'sha256': HASH, 'etag': '"v1"',
+             'source': {'commit': 'b' * 40, 'blob_oid': 'c' * 40, 'manifest_hash_prefix': 'd' * 12}}, 'pending': None, 'notebook': None}
     notebooks = {'C099': {'notebook_id': 'fictional_notebook', 'drive_documents': {'a.md': entry}}}
     return selected, notebooks
 
@@ -46,6 +46,7 @@ def test_changed_original_and_stale_observation_pending():
 def test_new_failure_partial_missing_source_and_explicit_stale_bound():
     selected, notebooks = inputs()
     notebooks['C099']['drive_documents']['b.md'] = deepcopy(notebooks['C099']['drive_documents']['a.md'])
+    notebooks['C099']['drive_documents']['b.md']['file_id'] = 'fictional_file_b'
     receipts = json.loads((Path(__file__).parent / 'fixtures/individual_status/receipts.json').read_text())
     result = reduce_status(selected, notebooks, receipts, now=NOW)
     a, b = result['items']
@@ -74,7 +75,7 @@ def test_plan_receipts_do_not_count_and_unattributed_preflight_visible():
                'completed_at': NOW, 'status': 'success', 'items': []}
     assert reduce_status(selected, notebooks, [receipt], now=NOW)['items'][0]['last_successful_publication_at'] is None
     receipt.update(mode='publish', status='failed')
-    assert 'unattributed_preflight_failure' in reduce_status(selected, notebooks, [receipt], now=NOW)['items'][0]['problems']
+    assert reduce_status(selected, notebooks, [receipt], now=NOW)['run_problems'][0]['code'] == 'unattributed_preflight_failure'
 
 
 @pytest.mark.parametrize('now, threshold', [('2026-10-03', None), (NOW, 0), (NOW, -1)])
@@ -134,8 +135,92 @@ def test_cli_real_git_selection_is_hermetic(tmp_path, capsys, monkeypatch):
     args = ['--repo', str(root), git('rev-parse', 'HEAD'), '--manifest', str(manifest_path),
             '--map', str(map_path), '--receipts', str(receipts), '--now', NOW]
     assert main(args) == 0
-    result = json.loads(capsys.readouterr().out)
+    output = capsys.readouterr().out
+    assert '# Fictional original' not in output
+    result = json.loads(output)
     assert result['items'][0]['path'] == 'a.md'
     assert 'binding_missing' in result['items'][0]['problems']
     assert map_path.read_bytes() == before and not list(receipts.iterdir())
     assert not (tmp_path / 'map.yaml.lock').exists()
+
+
+def test_missing_target_observation_is_unknown():
+    _, notebooks = inputs()
+    notebooks['C099']['drive_documents']['a.md']['notebook'] = {
+        'sha256': HASH, 'source_id': 'fictional_source', 'evidence': 'fixture_ref'}
+    row = reduce_status([], notebooks, [], now=NOW)['items'][0]
+    assert row['notebook_observation'] == 'unknown'
+    assert 'notebook_observation_stale' not in row['problems']
+
+
+def run_receipt(**changes):
+    receipt = {'format': 'c021.individual-publication-batch.v1', 'run_id': 'fixture',
+               'mode': 'publish', 'completed_at': NOW, 'status': 'success',
+               'items': [{'repo': 'C099', 'path': 'a.md', 'status': 'success',
+                          'verification': 'remote', 'action': 'replace_bytes', 'sha256': HASH}]}
+    receipt.update(changes)
+    return receipt
+
+
+def test_verified_base_does_not_refresh_publication_age():
+    selected, notebooks = inputs()
+    receipt = run_receipt(mode='reconcile')
+    receipt['items'][0]['action'] = 'verified_base'
+    row = reduce_status(selected, notebooks, [receipt], now=NOW, stale_after_seconds=60)['items'][0]
+    assert row['last_successful_publication_at'] is None
+    assert row['receipt_freshness'] == 'unknown'
+
+
+@pytest.mark.parametrize('value', [None, 123, {}, []])
+def test_nonstring_timestamp_is_validation_error(value):
+    with pytest.raises(ValueError):
+        reduce_status([], {}, [run_receipt(completed_at=value)], now=NOW)
+
+
+def test_empty_view_keeps_unattributed_failure_global():
+    receipt = run_receipt(status='failed', items=[])
+    result = reduce_status([], {}, [receipt], now=NOW)
+    assert result['aggregate'] == 'attention'
+    assert result['run_problems'][0]['code'] == 'unattributed_preflight_failure'
+
+
+def test_simultaneous_failure_cannot_be_hidden_by_random_run_id():
+    selected, notebooks = inputs()
+    success = run_receipt(run_id='z')
+    failure = run_receipt(run_id='a', status='failed')
+    failure['items'][0]['status'] = 'failed'
+    row = reduce_status(selected, notebooks, [success, failure], now=NOW)['items'][0]
+    assert 'latest_run_failed_or_partial' in row['problems']
+    assert reduce_status(selected, notebooks, [failure, success], now=NOW)['items'][0] == row
+
+
+def test_partial_batch_success_item_still_reports_run_failure():
+    selected, notebooks = inputs()
+    row = reduce_status(selected, notebooks, [run_receipt(status='failed')], now=NOW)['items'][0]
+    assert row['last_successful_publication_at'] == NOW
+    assert 'latest_run_failed_or_partial' in row['problems']
+
+
+@pytest.mark.parametrize('changes', [{'mode': 'damaged'}, {'format': 'c021.individual-publication-batch.v2'}])
+def test_damaged_individual_receipt_refused(changes):
+    with pytest.raises(ValueError):
+        reduce_status([], {}, [run_receipt(**changes)], now=NOW)
+
+
+def test_cli_missing_map_and_symlink_receipt_refused(tmp_path, monkeypatch, capsys):
+    from notebooklm_mcp.doc_refresh import individual_status as module
+    from types import SimpleNamespace
+    monkeypatch.setattr(module, 'build_bundle', lambda *a, **k: SimpleNamespace(documents=[], receipt={}))
+    receipts = tmp_path / 'receipts'
+    receipts.mkdir()
+    map_path = tmp_path / 'map.yaml'
+    args = ['--repo', str(tmp_path), 'b' * 40, '--manifest', str(tmp_path / 'manifest'),
+            '--map', str(map_path), '--receipts', str(receipts), '--now', NOW]
+    assert main(args) == 2
+    assert capsys.readouterr().err == 'Invalid or unavailable local status inputs\n'
+    map_path.write_text('notebooks: {}\n')
+    outside = tmp_path / 'outside.json'
+    outside.write_text('{}')
+    (receipts / 'link.json').symlink_to(outside)
+    assert main(args) == 2
+    assert capsys.readouterr().err == 'Invalid or unavailable local status inputs\n'
