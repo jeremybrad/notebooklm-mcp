@@ -1,3 +1,7 @@
+## 2026-10-03
+
+- Add read-only per-original status from existing bindings and receipts (WOR-855): publication and NotebookLM evidence remain separate; unresolved policy and host evidence stay unknown. See `docs/doc_refresh/INDIVIDUAL_STATUS.md`.
+
 ## 2026-10-02
 
 - Record the approved three-original C010 pilot: three owner-only Markdown files and notebook sources, complete source/citation checks within five minutes, zero-upload unchanged repeat and restored current selections. Wider rollout and changed-revision acceptance remain open. See `20_receipts/2026-10-02_three_document_original_pilot.md`.
