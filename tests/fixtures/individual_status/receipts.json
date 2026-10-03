@@ -1,0 +1,4 @@
+[
+  {"format":"c021.individual-publication-batch.v1","run_id":"old","mode":"publish","completed_at":"2026-10-01T00:00:00Z","status":"success","items":[{"repo":"C099","path":"a.md","status":"success","verification":"remote","action":"replace_bytes"}]},
+  {"format":"c021.individual-publication-batch.v1","run_id":"new","mode":"publish","completed_at":"2026-10-02T00:00:00Z","status":"failed","items":[{"repo":"C099","path":"a.md","status":"failed","verification":"offline"},{"repo":"C099","path":"b.md","status":"not_attempted","verification":"offline"}]}
+]

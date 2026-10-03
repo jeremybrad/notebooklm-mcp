@@ -1,3 +1,11 @@
+## 2026-10-03
+
+- Preserve failed offline plan/status receipts, attribute failures only to originals mentioned by the run, and open receipt files nonblocking before regular-file validation.
+
+- Harden offline status evidence after adversarial review: missing maps and malformed receipts fail closed; old-base reconciliation cannot refresh publication age; absent targets stay unknown and run-level failures remain visible.
+
+- Add read-only per-original status from existing bindings and receipts (WOR-855): publication and NotebookLM evidence remain separate; unresolved policy and host evidence stay unknown. See `docs/doc_refresh/INDIVIDUAL_STATUS.md`.
+
 ## 2026-10-02
 
 - Record the approved three-original C010 pilot: three owner-only Markdown files and notebook sources, complete source/citation checks within five minutes, zero-upload unchanged repeat and restored current selections. Wider rollout and changed-revision acceptance remain open. See `20_receipts/2026-10-02_three_document_original_pilot.md`.
