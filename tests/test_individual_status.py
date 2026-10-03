@@ -224,3 +224,47 @@ def test_cli_missing_map_and_symlink_receipt_refused(tmp_path, monkeypatch, caps
     (receipts / 'link.json').symlink_to(outside)
     assert main(args) == 2
     assert capsys.readouterr().err == 'Invalid or unavailable local status inputs\n'
+
+
+@pytest.mark.parametrize('mode', ['plan', 'status'])
+def test_offline_mode_failure_remains_visible_without_publication_success(mode):
+    selected, notebooks = inputs()
+    old = run_receipt(completed_at='2026-10-01T00:00:00Z')
+    failed = run_receipt(mode=mode, status='failed')
+    failed['items'][0].update(status='not_attempted', verification='offline')
+    result = reduce_status(selected, notebooks, [old, failed], now=NOW)
+    assert 'latest_run_failed_or_partial' in result['items'][0]['problems']
+    assert result['items'][0]['last_successful_publication_at'] == old['completed_at']
+    failed['items'] = []
+    assert reduce_status([], {}, [failed], now=NOW)['aggregate'] == 'attention'
+
+
+def test_other_original_not_in_failed_run_is_not_attributed_its_failure():
+    selected, notebooks = inputs()
+    old = run_receipt(completed_at='2026-10-01T00:00:00Z')
+    failed = run_receipt(status='failed')
+    failed['items'][0].update(path='outside.md', status='failed')
+    row = reduce_status(selected, notebooks, [old, failed], now=NOW)['items'][0]
+    assert 'latest_run_failed_or_partial' not in row['problems']
+
+
+def test_cli_special_receipt_open_uses_nonblocking_flag(tmp_path, monkeypatch, capsys):
+    import os
+    from notebooklm_mcp.doc_refresh import individual_status as module
+    from types import SimpleNamespace
+    monkeypatch.setattr(module, 'build_bundle', lambda *a, **k: SimpleNamespace(documents=[], receipt={}))
+    receipts = tmp_path / 'receipts'
+    receipts.mkdir()
+    (receipts / 'fake.json').write_text('{}')
+    map_path = tmp_path / 'map.yaml'
+    map_path.write_text('notebooks: {}\n')
+    real_open = os.open
+    def guarded_open(path, flags, *args, **kwargs):
+        if str(path).endswith('fake.json'):
+            assert flags & os.O_NONBLOCK
+        return real_open(path, flags, *args, **kwargs)
+    monkeypatch.setattr(module.os, 'open', guarded_open)
+    args = ['--repo', str(tmp_path), 'b' * 40, '--manifest', str(tmp_path / 'manifest'),
+            '--map', str(map_path), '--receipts', str(receipts), '--now', NOW]
+    assert main(args) == 0
+    capsys.readouterr()

@@ -35,7 +35,8 @@ a successful original cannot hide a failed or missing sibling.
 bound, with no active default. It compares the last per-item remote publication
 success to `--now`; without it receipt freshness is unknown. Retry limits and
 reminder intervals remain unresolved under WOR-849 and are not implemented.
-Plan/status success receipts never count as publication success. Reconciliation
+Plan/status success receipts never count as publication success. Failed plan/status
+receipts remain failure evidence even though they cannot establish publication. Reconciliation
 that verifies the old base does not advance publication success or its age.
 Equal receipt timestamps preserve any failure at that timestamp. A partial batch
 retains successful item history but still surfaces the batch failure.
@@ -53,7 +54,10 @@ invocation or host exits before a receipt. Generic operation failures cannot
 reliably distinguish permission, credential or external-edit causes. Invalid,
 unreadable or oversized receipt inputs return exit 2 with a fixed message;
 a missing map returns exit 2, while an existing empty map exposes missing bindings.
-Receipt reads are bounded regular-file reads and reject symlinks. Known individual
+Receipt reads open nonblocking before regular-file validation, are bounded, and
+reject symlinks and special files. Per-source failures refer only to receipts
+actually mentioning that original; a same-repo failure is not attributed to an
+unmentioned sibling. Known individual
 receipt families with unsupported versions or modes are refused. Other existing
 receipt families are outside this view and do not count as publication evidence;
 missing matching evidence remains visible in otherwise valid output. Errors go

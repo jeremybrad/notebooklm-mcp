@@ -47,7 +47,7 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
         stamp = _time(receipt['completed_at'])
         if stamp > clock:
             raise ValueError('Future receipt')
-        if receipt['mode'] in {'publish', 'reconcile'}:
+        if receipt['mode'] in {'publish', 'reconcile'} or receipt['status'] == 'failed':
             runs.append((stamp, receipt))
     runs.sort(key=lambda pair: (pair[0], json.dumps(pair[1], sort_keys=True)))
     run_problems = [{'code': 'unattributed_preflight_failure',
@@ -65,8 +65,6 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
         entry = record.get(KEY, {}).get(path)
         history = [(stamp, run, item) for stamp, run in runs for item in run.get('items', [])
                    if item.get('repo') == repo and item.get('path') == path]
-        relevant_runs = [(stamp, run) for stamp, run in runs
-                         if any(i.get('repo') == repo for i in run.get('items', []))]
         latest = [h for h in history if h[0] == history[-1][0]] if history else []
         successes = [h for h in history if h[2].get('status') == 'success'
                      and h[2].get('verification') == 'remote'
@@ -96,10 +94,6 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
                     problems.append('notebook_observation_stale')
         if any(h[2].get('status') != 'success' or h[1].get('status') != 'success' for h in latest):
             problems.append('latest_run_failed_or_partial')
-        if relevant_runs and any(run['status'] != 'success' for stamp, run in relevant_runs
-                                 if stamp == relevant_runs[-1][0]):
-            if 'latest_run_failed_or_partial' not in problems:
-                problems.append('latest_run_failed_or_partial')
         if not history:
             problems.append('receipt_missing')
         freshness = 'unknown'
@@ -158,7 +152,7 @@ def main(argv=None):
         # Read each explicitly selected receipt directory; never create a receipt or map.
         receipts = []
         for p in sorted(args.receipts.glob('*.json')):
-            fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+            fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
             with os.fdopen(fd, 'rb') as stream:
                 if p.is_symlink() or not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                     raise ValueError('Regular receipt required')
