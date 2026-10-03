@@ -48,6 +48,8 @@ def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=
                 selected_paths = {source.path for source in artifact.documents}
                 if mode in {'publish', 'reconcile'} and set(bound) - selected_paths:
                     raise StateError('Previously bound original missing from inspected selection')
+                if mode == 'reconcile' and not any(e['pending'] for e in bound.values()):
+                    raise StateError('Recovery requires an original pending intent')
                 for source in artifact.documents:
                     key = state.document_key(source)
                     raw, provenance = state._target(source, artifact.receipt)
@@ -62,9 +64,22 @@ def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=
                     if mode in {'publish', 'reconcile'}:
                         if entry is None or transport_factory is None: raise StateError('Live explicit binding/factory required')
                         if mode == 'publish' and entry['pending'] is not None: raise StateError('Pending recovery required')
-                        if mode == 'reconcile' and (entry['pending'] is None
-                            or entry['pending']['target_sha256'] != state.digest(raw)
-                            or entry['pending']['source'] != provenance): raise StateError('Original pending input required')
+                        if mode == 'reconcile':
+                            pending = entry['pending']
+                            if pending is not None:
+                                if (pending['target_sha256'] != state.digest(raw)
+                                        or pending['source'] != provenance):
+                                    raise StateError('Original pending input required')
+                            elif (entry['verified']['sha256'] == state.digest(raw)
+                                  and entry['verified']['source'] == provenance):
+                                item['action'] = 'verify_sibling'
+                            elif (entry['verified']['sha256'] == state.digest(b'')
+                                  and entry['verified']['source'] is None):
+                                # An empty adoption is not evidence of a publication attempt.
+                                # Reconciliation must never publish or remotely inspect this tail.
+                                item['action'] = 'not_pending'
+                            else:
+                                raise StateError('Ambiguous nonpending recovery input')
                         if config is not None:
                             destination = config.destinations.get(key)
                             if destination is None or destination.document_id != entry['file_id']:
@@ -76,9 +91,13 @@ def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=
         else:
             for job, artifact, entry, item in prepared:
                 if mode in {'plan','status'}: item['status'] = 'success'; continue
+                if mode == 'reconcile' and item['action'] == 'not_pending':
+                    continue
                 try:
                     with transport_factory(job, entry['file_id']) as transport:
-                        operation = state.publish if mode == 'publish' else state.reconcile
+                        operation = (state.publish if mode == 'publish' else
+                                     state.verify_sibling if item['action'] == 'verify_sibling' else
+                                     state.reconcile)
                         item['action'] = operation(store,job.source,artifact.receipt,transport)
                     item.update(status='success',verification='remote')
                 except Exception:
