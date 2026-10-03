@@ -102,7 +102,7 @@ def reduce_status(selected, notebooks, receipts, *, now, stale_after_seconds=Non
                          else 'within_explicit_bound')
             if freshness == 'stale':
                 problems.append('publication_receipt_stale')
-        if observation == 'unknown':
+        if observation == 'unknown' and (entry is None or entry['notebook'] is None):
             problems.append('notebook_observation_missing')
         rows.append({'repo': repo, 'path': path, 'file_id': entry['file_id'] if entry else None,
                      'notebook_id': record.get('notebook_id'),

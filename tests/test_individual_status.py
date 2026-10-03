@@ -151,6 +151,31 @@ def test_missing_target_observation_is_unknown():
     row = reduce_status([], notebooks, [], now=NOW)['items'][0]
     assert row['notebook_observation'] == 'unknown'
     assert 'notebook_observation_stale' not in row['problems']
+    assert 'notebook_observation_missing' not in row['problems']
+    assert 'original_missing_from_selection' in row['problems']
+    assert row['source_id'] == 'fictional_source'
+    assert row['observation_evidence'] == 'fixture_ref'
+    assert row['observation_evidence_at'] is None
+    assert row['last_successful_scheduled_run_at'] is None
+
+
+@pytest.mark.parametrize('selected_target, bound', [(True, True), (False, True), (True, False)])
+def test_truly_missing_observation_retains_missing_reason(selected_target, bound):
+    selected, notebooks = inputs()
+    if not selected_target:
+        selected = []
+    if not bound:
+        notebooks = {}
+    row = reduce_status(selected, notebooks, [], now=NOW)['items'][0]
+    assert row['notebook_observation'] == 'unknown'
+    assert 'notebook_observation_missing' in row['problems']
+    assert 'notebook_observation_stale' not in row['problems']
+    assert ('original_missing_from_selection' in row['problems']) == (not selected_target)
+    assert ('binding_missing' in row['problems']) == (not bound)
+    assert row['source_id'] is None
+    assert row['observation_evidence'] is None
+    assert row['observation_evidence_at'] is None
+    assert row['last_successful_scheduled_run_at'] is None
 
 
 def run_receipt(**changes):

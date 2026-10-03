@@ -80,3 +80,9 @@ source, and a later source success cannot establish which absent preflight input
 recovered. No unresolved failure is hidden simply because the view has no rows.
 A missing selected target leaves its NotebookLM observation unknown even if an
 older observation exists; staleness requires an actual target-hash comparison.
+
+An existing observation with no selected target retains its source ID and evidence
+and is not labelled `notebook_observation_missing`. That reason is reserved for an
+absent bound observation. The target's absence still produces
+`original_missing_from_selection` and attention. No new evidence or comparison
+timestamp is invented.
