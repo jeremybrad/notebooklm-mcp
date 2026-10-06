@@ -49,3 +49,30 @@ No push, PR, model invocation, provider/credential call, live publication,
 scheduler/configuration change, install, environment creation or canonical edit.
 PR34 and the other independent candidate are preserved. This receipt adds no
 mandatory per-session policy and asserts no broader issue acceptance.
+
+
+## 2026-10-06 bounded PR36 repair
+
+Original head `39b5082a5ef025ce1a464388470ef06cc25075a6` remains in ancestry.
+Integrated pinned main `38812038b5f8ec31f6f9ce53fc8790c86b372faa` without
+rewriting the original work. Incoming PR35 adds four independent review-reducer
+files; it does not repair individual recovery or add a production caller.
+
+WOR854-R01/P2: completion now requires an operation result and successful context
+finalization. Suppressed operation errors fail the item rather than reporting
+remote success. WOR854-R02/P2: a bound transport checks the preflight destination
+before forwarding reads or writes, including a binding change during construction.
+Source repair stays in individual_batch.py; individual_publication.py is unchanged.
+
+Red-first evidence: six of eight new synthetic cases failed on the unmodified
+implementation; two finalization-failure cases already passed. After repair,
+106 focused tests passed and the full hermetic suite passed 760 tests with one
+existing filesystem skip. Strict regression-file lint, source lint excluding
+existing E701/E702/F401 style debt, and diff whitespace checks passed.
+
+Durable logs: `/Users/jeremybradford/LocalWork/Codex/2026-10-06/task-4/repair-red.log`,
+`repair-focused.log`, and `repair-full.log` in that same directory.
+Wheel/sdist provenance and the one approved repair-review result are separate
+exact-head evidence retained in task-4. This receipt records local synthetic
+verification; it does not claim an independent clean review, hosted CI, live
+publication or broader WOR854 acceptance. PR36 remains draft.

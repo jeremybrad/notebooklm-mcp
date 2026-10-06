@@ -22,6 +22,26 @@ class DocumentJob:
     source: object
 
 
+class _BoundTransport:
+    """Refuse binding drift before forwarding any destination access."""
+
+    def __init__(self, transport, file_id):
+        self.transport = transport
+        self.file_id = file_id
+
+    def _check(self, file_id):
+        if file_id != self.file_id:
+            raise StateError('Individual destination changed after preflight')
+
+    def read(self, file_id):
+        self._check(file_id)
+        return self.transport.read(file_id)
+
+    def write(self, file_id, content, etag):
+        self._check(file_id)
+        return self.transport.write(file_id, content, etag)
+
+
 def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=None, config=None):
     if mode not in {'plan', 'status', 'publish', 'reconcile'} or manifest_path is None:
         raise StateError('Explicit individual mode and manifest required')
@@ -94,12 +114,16 @@ def execute(mode, jobs, store, receipt_dir, *, manifest_path, transport_factory=
                 if mode == 'reconcile' and item['action'] == 'not_pending':
                     continue
                 try:
+                    action = None
                     with transport_factory(job, entry['file_id']) as transport:
                         operation = (state.publish if mode == 'publish' else
                                      state.verify_sibling if item['action'] == 'verify_sibling' else
                                      state.reconcile)
-                        item['action'] = operation(store,job.source,artifact.receipt,transport)
-                    item.update(status='success',verification='remote')
+                        action = operation(store,job.source,artifact.receipt,
+                                           _BoundTransport(transport, entry['file_id']))
+                    if action is None:
+                        raise StateError('Individual operation did not complete')
+                    item.update(action=action,status='success',verification='remote')
                 except Exception:
                     item.update(status='failed', error='individual_operation_failed')
                     break

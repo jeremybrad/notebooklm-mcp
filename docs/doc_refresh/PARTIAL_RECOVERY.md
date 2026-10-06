@@ -29,3 +29,12 @@ after all intents clear refuses before transport access. This slice does not inf
 a batch identity for previously published changed siblings, enroll destinations,
 activate schedules, access credentials or retry writes. Those broader cases need
 explicit original-run evidence and remain outside the supported narrow recovery.
+
+
+Destination access stays pinned to each preflight binding, including when the map
+changes during transport construction. A changed destination fails before the
+underlying transport receives a read or write. Operation completion and successful
+context finalization are both required for a remote-success receipt. Suppressing
+an operation error cannot turn an incomplete verification into success; the batch
+fails and leaves later items unattempted. A finalization failure after a completed
+state transition still reports failure; it does not roll back verified state.

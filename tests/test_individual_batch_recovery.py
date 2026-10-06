@@ -186,3 +186,111 @@ def test_nonempty_unpending_sibling_is_ambiguous(selected, tmp_path):
     assert result["error"] == "individual_preflight_failed"
     assert reads == [] and store.path.read_bytes() == before
     assert writes == {"file_0": 1, "file_1": 1, "file_2": 0}
+
+
+@pytest.mark.parametrize("identity", ["file_0", "file_1"])
+@pytest.mark.parametrize("failure", ["suppressed_operation", "finalization"])
+def test_recovery_requires_completed_operation_and_context(
+    selected, tmp_path, identity, failure
+):
+    from notebooklm_mcp.doc_refresh.publication_state import StateError
+
+    root, manifest, store, remotes, writes, reads, _ = setup_batch(
+        selected, tmp_path, True
+    )
+    artifact = build_bundle(root, "HEAD", manifest_path=manifest)
+    if failure == "suppressed_operation":
+        remotes[identity] = replace(remotes[identity], content=b"external edit")
+    reads.clear()
+
+    @contextmanager
+    def factory(job, file_id):
+        class Transport:
+            def read(self, requested):
+                reads.append(requested)
+                return remotes[requested]
+
+            def write(self, *args):
+                pytest.fail("reconciliation must not write")
+
+        try:
+            yield Transport()
+        except StateError:
+            if file_id != identity or failure != "suppressed_operation":
+                raise
+        if file_id == identity and failure == "finalization":
+            raise OSError("synthetic context finalization failure")
+
+    result = execute(
+        "reconcile", [Job(root, artifact.receipt["commit"])], store,
+        tmp_path / "receipts", manifest_path=manifest, transport_factory=factory,
+    )
+    failed = 0 if identity == "file_0" else 1
+    assert result["exit_code"] == 1
+    assert result["items"][failed]["status"] == "failed"
+    assert result["items"][failed]["verification"] == "offline"
+    assert all(item["status"] == "not_attempted" for item in result["items"][failed + 1:])
+    assert reads == (["file_0"] if failed == 0 else ["file_0", "file_1"])
+    assert writes == {"file_0": 1, "file_1": 1, "file_2": 0}
+    if failure == "suppressed_operation":
+        assert store.read().data["notebooks"][root.name]["drive_documents"][
+            "b/reference.md"
+        ]["pending"] is not None
+    receipt = json.loads(open(result["receipt_path"]).read())
+    assert receipt["items"] == result["items"]
+
+
+@pytest.mark.parametrize("identity", ["file_0", "file_1"])
+@pytest.mark.parametrize("configured", [False, True])
+def test_recovery_pins_preflight_destination_before_forwarding(
+    selected, tmp_path, identity, configured
+):
+    from types import SimpleNamespace
+    from notebooklm_mcp.doc_refresh.individual_publication import document_key
+
+    root, manifest, store, remotes, writes, reads, _ = setup_batch(
+        selected, tmp_path, True
+    )
+    artifact = build_bundle(root, "HEAD", manifest_path=manifest)
+    config = SimpleNamespace(destinations={
+        document_key(source): SimpleNamespace(document_id=f"file_{i}")
+        for i, source in enumerate(artifact.documents)
+    }) if configured else None
+    reads.clear()
+
+    @contextmanager
+    def factory(job, file_id):
+        if file_id == identity:
+            with store.transaction() as transaction:
+                old = store.read()
+                data = deepcopy(old.data)
+                data["notebooks"][root.name]["drive_documents"][job.source.path][
+                    "file_id"
+                ] = "file_alt"
+                transaction.save(old, data)
+            remotes["file_alt"] = replace(remotes[identity], file_id="file_alt")
+
+        class Transport:
+            def read(self, requested):
+                reads.append(requested)
+                return remotes[requested]
+
+            def write(self, *args):
+                pytest.fail("reconciliation must not write")
+
+        yield Transport()
+
+    result = execute(
+        "reconcile", [Job(root, artifact.receipt["commit"])], store,
+        tmp_path / "receipts", manifest_path=manifest, transport_factory=factory,
+        config=config,
+    )
+    failed = 0 if identity == "file_0" else 1
+    assert result["exit_code"] == 1
+    assert result["items"][failed]["status"] == "failed"
+    assert reads == ([] if failed == 0 else ["file_0"])
+    assert all(item["status"] == "not_attempted" for item in result["items"][failed + 1:])
+    assert writes == {"file_0": 1, "file_1": 1, "file_2": 0}
+    assert store.read().data["notebooks"][root.name]["drive_documents"][
+        "b/reference.md"
+    ]["pending"] is not None
