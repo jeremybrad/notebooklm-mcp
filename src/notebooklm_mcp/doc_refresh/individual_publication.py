@@ -167,3 +167,17 @@ def reconcile(store, source, receipt, transport):
         entry['pending'] = None
         transaction.save(old, data)
         return action
+
+
+def verify_sibling(store, source, receipt, transport):
+    """Read back an exact already-verified recovery sibling without changing state."""
+    raw, provenance = _target(source, receipt)
+    with store.transaction():
+        entry = _entry(store.read().data, source)
+        if (entry['pending'] is not None or entry['verified']['sha256'] != digest(raw)
+                or entry['verified']['source'] != provenance):
+            raise StateError('Exact verified sibling required')
+        remote = _read(transport, entry['file_id'])
+        if remote.content != raw:
+            raise StateError('Remote verified sibling changed')
+        return 'verified_sibling'
