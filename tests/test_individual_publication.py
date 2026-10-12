@@ -3,6 +3,7 @@ import hashlib
 import json
 import subprocess
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 import yaml
@@ -363,6 +364,28 @@ def test_admission_receipt_failure_does_not_claim_success_or_replay(selected, tm
     monkeypatch.setattr(_ReceiptSink, 'finish', failed_finish)
     with pytest.raises(ReceiptError): admit(inputs)
     assert inputs[4].read().data['notebooks'][inputs[2].repo]['drive_documents'][inputs[2].path]['pending'] is None
+    assert inputs[3].writes == 0
+
+
+def test_admission_transaction_exit_failure_reports_saved_failed_operation(selected, tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    inputs = adoption_inputs(selected, tmp_path)
+    original = MapStore.transaction
+    @contextmanager
+    def failed_exit(self):
+        with original(self) as transaction:
+            yield transaction
+        raise OSError('fictional transaction teardown failure after save')
+    monkeypatch.setattr(MapStore, 'transaction', failed_exit)
+    result = admit(inputs)
+    assert result['status'] == 'failed'
+    assert result['error'] == 'original_admission_failed'
+    assert result['map_effect'] == 'verified_base_saved'
+    persisted = json.loads(Path(result['receipt_path']).read_text())
+    assert persisted['status'] == 'failed' and persisted['map_effect'] == 'verified_base_saved'
+    entry = inputs[4].read().data['notebooks'][inputs[2].repo]['drive_documents'][inputs[2].path]
+    assert entry['verified']['sha256'] == hashlib.sha256(inputs[3].snapshot.content).hexdigest()
+    assert entry['pending'] is None and entry['notebook'] is None
     assert inputs[3].writes == 0
 
 

@@ -201,6 +201,7 @@ def bind_existing_original(store, source, receipt, notebook_id, file_id, transpo
                 transaction.save(old, data)
                 result.update(status='success', map_effect='verified_base_saved')
         except Exception:
+            result['status'] = 'failed'
             result['error'] = 'original_admission_failed'
         result['completed_at'] = _now()
         result['receipt_path'] = sink.finish(result)
