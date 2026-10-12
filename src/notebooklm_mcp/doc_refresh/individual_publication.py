@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import hashlib
 import re
 import uuid
+from pathlib import Path
 
 from .drive_publication import SourceText
 from .publication_state import MapStore, StateError, _hash, _keys, _label
@@ -126,6 +127,86 @@ def bind_empty(store, source, notebook_id, snapshot):
             'verified': {'sha256': digest(b''), 'etag': snapshot.etag, 'source': None},
             'pending': None, 'notebook': None}
         transaction.save(old, data)
+
+
+def bind_existing_original(store, source, receipt, notebook_id, file_id, transport,
+                           *, source_root, receipt_dir, expected_etag=None):
+    """Explicit admission of an exact committed base; never upload or attest a notebook.
+
+    The injected read-only transport must enforce the approved account/destination,
+    owner-only ACL and coherent full-byte/ETag checks, as GoogleMarkdownTransport
+    does. Receipts are reserved before remote access; receipt failure is failure
+    even if the truthful local binding was saved. No automatic admission/retry.
+    """
+    from .publication_batch import _ReceiptSink, _now
+    from .source_bundle import _git
+
+    root = Path(source_root).absolute()
+    try:
+        git_root = Path(_git(root, 'rev-parse', '--show-toplevel').decode().strip())
+    except Exception:
+        git_root = None
+    run_id = uuid.uuid4().hex
+    sink = _ReceiptSink(receipt_dir, run_id, [root] + ([git_root] if git_root else []))
+    result = {'format': 'c021.individual-admission.v1', 'run_id': run_id,
+              'started_at': _now(), 'status': 'failed', 'map_effect': 'unchanged'}
+    try:
+        try:
+            raw, provenance = _target(source, receipt)
+            _label(notebook_id); _label(file_id)
+            if expected_etag is not None: _etag(expected_etag)
+            if (not root.is_dir() or root.name != source.repo or git_root is None
+                    or git_root.resolve() != root.resolve()
+                    or store.path.resolve().is_relative_to(root.resolve())):
+                raise StateError('Explicit source root and outside map required')
+            commit = _git(root, 'rev-parse', '--verify', '--end-of-options',
+                          provenance['commit'] + '^{commit}').decode().strip()
+            blob = _git(root, 'rev-parse', '--verify', '--end-of-options',
+                        commit + ':' + source.path).decode().strip()
+            tree = _git(root, 'ls-tree', '-z', '--full-tree', commit, '--', source.path)
+            metadata, path = tree.rstrip(b'\0').split(b'\t')
+            mode, kind, tree_blob = metadata.split()
+            if (mode not in {b'100644', b'100755'} or kind != b'blob'
+                    or tree_blob.decode() != blob or path.decode('utf-8') != source.path):
+                raise StateError('Regular committed original required')
+            committed = _git(root, 'cat-file', 'blob', blob)
+            algorithm = 'sha1' if len(blob) == 40 else 'sha256'
+            actual_blob = hashlib.new(algorithm, b'blob ' + str(len(raw)).encode()
+                                      + b'\0' + raw).hexdigest()
+            if (commit != provenance['commit'] or blob != source.source_revision
+                    or actual_blob != blob or committed != raw):
+                raise StateError('Exact immutable original base required')
+            result.update(repo=source.repo, path=source.path, sha256=digest(raw),
+                          source=provenance)
+            with store.transaction() as transaction:
+                old = store.read(); data = deepcopy(old.data)
+                record = data['notebooks'].setdefault(source.repo, {'notebook_id': notebook_id})
+                if record.get('notebook_id') != notebook_id:
+                    raise StateError('Notebook identity mismatch')
+                documents = record.setdefault(KEY, {})
+                if source.path in documents:
+                    raise StateError('Existing or pending original cannot be replaced')
+                # Validate collisions before entering the supplied remote transport.
+                documents[source.path] = {'version': 1, 'file_id': file_id,
+                    'verified': {'sha256': digest(raw), 'etag': '"unverified"',
+                                 'source': provenance}, 'pending': None, 'notebook': None}
+                from .publication_state import validate_map
+                validate_map(data)
+                remote = _read(transport, file_id)
+                if remote.content != raw or (expected_etag is not None
+                                              and remote.etag != expected_etag):
+                    raise StateError('Remote original base changed')
+                documents[source.path]['verified']['etag'] = remote.etag
+                result['map_effect'] = 'save_outcome_unknown'
+                transaction.save(old, data)
+                result.update(status='success', map_effect='verified_base_saved')
+        except Exception:
+            result['error'] = 'original_admission_failed'
+        result['completed_at'] = _now()
+        result['receipt_path'] = sink.finish(result)
+        return result
+    finally:
+        sink.close()
 
 
 def publish(store, source, receipt, transport):

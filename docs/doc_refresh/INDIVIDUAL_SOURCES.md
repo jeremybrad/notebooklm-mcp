@@ -43,8 +43,8 @@ pending intent and optional separately observed notebook source attestation.
 The existing native Docs entries remain separate within that same map. Whole-map
 validation prevents a file being bound twice, including across both formats.
 
-This implementation creates no Drive file or Notebook source, discovers no
-folder membership and adopts no nonempty file. `bind_empty` is a library primitive
+This implementation creates no Drive file or Notebook source and discovers no
+folder membership. `bind_empty` is a library primitive
 for explicit adoption of an inspected empty Markdown file, under the existing
 map transaction. Calling it is a governed state write, not upload permission.
 Live enrollment requires an exact reviewed account/parent/file/source scope.
@@ -58,6 +58,55 @@ SHA-256 of UTF-8 `repository + NUL + relative_path`, returned by `document_key`.
 Each key pins the existing `document_id`/`parent_id` shape to that Markdown file.
 This is configuration in the existing provider/map mechanism, not another registry.
 Do not modify installed bundle config as a side effect of preparing a pilot.
+
+### Explicit admission of an existing nonempty original
+
+`individual_publication.bind_existing_original(store, source, receipt, notebook_id,
+file_id, transport, *, source_root, receipt_dir, expected_etag=None)` admits only
+an exact committed **base** already present in an explicitly approved Drive file.
+This is a separately released library operation, never automatic behavior of
+`publish`, `reconcile`, CLI commands or a scheduler. `bind_empty` still refuses
+nonempty files. Admission is a local map/receipt write and makes no upload,
+NotebookLM import, query, selection change or credential change.
+
+Build the base `SourceText` and receipt through the accepted inspected manifest
+and `source_bundle.build_bundle` at a full immutable commit. Supply the actual
+repository root and receipt directory outside that root. The primitive verifies
+the base against that commit's regular Git blob, including exact UTF-8 bytes,
+size/hash, blob identity and receipt provenance. Do not supply the desired later
+revision as the base or replace unknown old provenance with a guessed commit.
+
+Use the existing explicitly configured provider and `GoogleMarkdownTransport`.
+Its fresh read enforces account, exact file/parent/MIME, editability, complete
+owner-only permissions and coherent strong ETag/full bytes. An arbitrary injected
+transport or a connector-readable snapshot does not establish these checks. The
+admission API trusts that transport contract, as other state APIs do; synthetic
+tests do not qualify a live account. `expected_etag`, if supplied, must be strong
+and match the fresh read. Omit it only when the fresh coherent read itself is the
+approved base observation; never use it to skip transport preflight.
+
+Reserve an operational receipt before remote access. Under the existing map
+transaction, reject existing/pending path bindings, notebook mismatch, duplicate
+files across original/native-Docs records, manual remote drift and concurrent map
+changes. Save only the exact verified base hash, fresh ETag and immutable source
+provenance; leave `pending` and notebook attestation null. Independently verified
+NotebookLM source identity/content/citation remains separate evidence. Unrelated
+map records are preserved. No file is emptied, duplicated, renamed or adopted
+through a forged empty-file observation.
+
+The returned `c021.individual-admission.v1` terminal receipt contains source
+metadata/hashes, outcome and `map_effect`, without content, cloud IDs, credentials
+or arbitrary exception messages. Use a dedicated explicit admission-receipt
+directory: these receipts are not publication-batch receipts and do not establish
+publication age or NotebookLM freshness. Ordinary refusal returns `status: failed`.
+Receipt reservation/persistence failure raises `ReceiptError`, never success;
+`map_effect: save_outcome_unknown` means a failed save may already have changed
+the map. A final receipt failure may likewise occur after a truthful binding was
+saved. Stop and inspect the explicit map/evidence read-only before choosing
+recovery; never retry admission blindly, overwrite an existing entry, roll it
+back automatically or infer success from absent receipt evidence. Crash-complete
+auditing is not claimed. After a separately approved successful admission, use
+the existing conditional publication/readback and unchanged-repeat path.
 
 ## Live updates and recovery
 
