@@ -170,17 +170,28 @@ def _verifier(value):
         raise OAuthError('invalid_configuration')
 
 
-def authorization_url(client: DesktopClient, redirect_uri: str, state: str, verifier: str) -> str:
+def _picker_file_id(value: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r'[A-Za-z0-9_-]{1,256}', value) is None:
+        raise OAuthError('invalid_configuration')
+    return value
+
+
+def authorization_url(client: DesktopClient, redirect_uri: str, state: str, verifier: str,
+                      *, picker_file_id: str | None = None) -> str:
     if not isinstance(client, DesktopClient) or not isinstance(state, str) or re.fullmatch(r'[A-Za-z0-9_-]{32,128}', state) is None:
         raise OAuthError('invalid_configuration')
     _redirect(redirect_uri)
     _verifier(verifier)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode('ascii')).digest()).decode('ascii').rstrip('=')
-    return AUTHORIZE_URL + '?' + urlencode({
+    parameters = {
         'client_id': client.client_id, 'redirect_uri': redirect_uri, 'response_type': 'code',
         'scope': DRIVE_FILE_SCOPE, 'state': state, 'code_challenge': challenge,
         'code_challenge_method': 'S256', 'access_type': 'offline', 'prompt': 'consent',
-    })
+    }
+    if picker_file_id is not None:
+        parameters.update(trigger_onepick='true', file_ids=_picker_file_id(picker_file_id),
+                          allow_multiple='false', allow_folder_selection='false')
+    return AUTHORIZE_URL + '?' + urlencode(parameters)
 
 
 class OAuthClient:

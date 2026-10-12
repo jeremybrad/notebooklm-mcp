@@ -266,3 +266,19 @@ def test_optional_client_secret_and_closed_client():
     assert 'client_secret' not in parse_qs(seen[0].content.decode())
     with pytest.raises(oauth.OAuthError, match='closed'):
         client.refresh(grant)
+
+
+def test_picker_url_exact_file_filter_and_no_broader_defaults():
+    from urllib.parse import parse_qs,urlsplit
+    query=parse_qs(urlsplit(oauth.authorization_url(CLIENT,REDIRECT,'s'*43,VERIFIER,picker_file_id='fictional_file')).query)
+    assert query['scope']==[DRIVE_FILE_SCOPE]
+    assert query['trigger_onepick']==['true'] and query['prompt']==['consent']
+    assert query['file_ids']==['fictional_file']
+    assert query['allow_multiple']==['false'] and query['allow_folder_selection']==['false']
+    ordinary=parse_qs(urlsplit(oauth.authorization_url(CLIENT,REDIRECT,'s'*43,VERIFIER)).query)
+    assert 'trigger_onepick' not in ordinary and 'file_ids' not in ordinary
+
+@pytest.mark.parametrize('file_id',['', 'a,b','*','a/b','a%2Fb','a b',123])
+def test_picker_invalid_file_id_refuses_without_network(file_id):
+    with pytest.raises(oauth.OAuthError):
+        oauth.authorization_url(CLIENT,REDIRECT,'s'*43,VERIFIER,picker_file_id=file_id)

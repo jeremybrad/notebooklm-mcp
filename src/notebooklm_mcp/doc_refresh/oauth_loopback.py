@@ -17,7 +17,8 @@ import time
 from urllib.parse import parse_qsl, urlsplit
 import webbrowser
 
-from .google_oauth import DesktopClient, authorization_url
+from .google_oauth import DesktopClient, authorization_url, _picker_file_id, OAuthError
+from .google_docs_transport import DRIVE_FILE_SCOPE
 
 _CALLBACK = "/oauth2/callback"
 _MAX_ATTEMPTS = 32
@@ -34,6 +35,7 @@ class LoopbackError(ValueError):
             "loopback_invalid_timeout", "loopback_unavailable", "loopback_configuration",
             "loopback_browser_failed", "loopback_denied", "loopback_timeout",
             "loopback_invalid_attempts",
+            "loopback_selection_refused",
         }
         self.code = code if code in allowed else "loopback_unavailable"
         super().__init__(self.code)
@@ -59,7 +61,8 @@ def _read_request(peer: socket.socket, deadline: float) -> bytes | None:
     return None
 
 
-def _callback_result(raw: bytes | None, host: str, state: str) -> tuple[str, str] | None:
+def _callback_result(raw: bytes | None, host: str, state: str,
+                     *, expected_file_id: str | None = None) -> tuple[str, str] | None:
     if raw is None:
         return None
     try:
@@ -90,16 +93,26 @@ def _callback_result(raw: bytes | None, host: str, state: str) -> tuple[str, str
             return None
         pairs = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True,
                           encoding="utf-8", errors="strict", max_num_fields=16)
-        params = dict(pairs)
-        if len(params) != len(pairs):
+        states = [value for key, value in pairs if key == 'state']
+        if len(states) != 1:
             return None
-        returned_state = params.get("state", "")
+        returned_state = states[0]
         if not hmac.compare_digest(returned_state.encode("utf-8"), state.encode("ascii")):
             return None
+        params = dict(pairs)
+        if len(params) != len(pairs):
+            return ('selection-refused', '') if expected_file_id is not None else None
         # Google may append scope/authuser/prompt fields. They are not logged or
         # trusted for scopes; the token response is validated by the OAuth layer.
         if "error" in params:
-            return ("denied", "") if params["error"] and "code" not in params else None
+            if params["error"] and "code" not in params:
+                return 'denied', ''
+            return ('selection-refused', '') if expected_file_id is not None else None
+        if expected_file_id is not None:
+            # file_ids filters the UI; only this receiver enforces our allowlist.
+            if (params.get('picked_file_ids') != expected_file_id
+                    or ('scope' in params and params['scope'].split() != [DRIVE_FILE_SCOPE])):
+                return 'selection-refused', ''
         code = params.get("code", "")
         if not code or len(code) > 4096 or any(ord(c) < 33 or ord(c) > 126 for c in code):
             return None
@@ -127,6 +140,26 @@ def _respond(peer: socket.socket, accepted: bool, deadline: float) -> None:
 def get_authorization_code(
     client: DesktopClient, *, opener=None, timeout: float = 180,
 ) -> tuple[str, str, str]:
+    """Legacy enrollment result; no Picker is requested."""
+    return _get_authorization_code(client, opener=opener, timeout=timeout)
+
+
+def get_file_authorization_code(
+    client: DesktopClient, *, file_id: str, opener=None, timeout: float = 180,
+) -> tuple[str, str, str]:
+    """Return a code only after an exact singleton Picker callback; no exchange."""
+    try:
+        _picker_file_id(file_id)
+    except OAuthError:
+        raise LoopbackError('loopback_configuration') from None
+    return _get_authorization_code(client, opener=opener, timeout=timeout,
+                                   expected_file_id=file_id)
+
+
+def _get_authorization_code(
+    client: DesktopClient, *, opener=None, timeout: float = 180,
+    expected_file_id: str | None = None,
+) -> tuple[str, str, str]:
     """Return (code, exact redirect URI, PKCE verifier), without exchanging it.
 
     Invalid callbacks consume at most 32 attempts. Each accepted TCP connection
@@ -150,7 +183,9 @@ def get_authorization_code(
         except OSError:
             raise LoopbackError("loopback_unavailable") from None
         try:
-            url = authorization_url(client, redirect_uri, state, verifier)
+            url = (authorization_url(client, redirect_uri, state, verifier)
+                   if expected_file_id is None else authorization_url(
+                       client, redirect_uri, state, verifier, picker_file_id=expected_file_id))
         except Exception:
             raise LoopbackError("loopback_configuration") from None
         if time.monotonic() >= deadline:
@@ -189,7 +224,8 @@ def get_authorization_code(
             with peer:
                 if address[0] != "127.0.0.1":
                     continue
-                outcome = _callback_result(_read_request(peer, deadline), host, state)
+                outcome = _callback_result(_read_request(peer, deadline), host, state,
+                                           expected_file_id=expected_file_id)
                 # Late data can never turn an expired enrollment into success.
                 if time.monotonic() >= deadline:
                     break
@@ -197,5 +233,7 @@ def get_authorization_code(
                 if outcome is not None:
                     if outcome[0] == "denied":
                         raise LoopbackError("loopback_denied")
+                    if outcome[0] == 'selection-refused':
+                        raise LoopbackError('loopback_selection_refused')
                     return outcome[1], redirect_uri, verifier
         raise LoopbackError("loopback_timeout")

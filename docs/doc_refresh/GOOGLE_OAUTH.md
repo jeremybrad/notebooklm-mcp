@@ -124,6 +124,75 @@ A stalled operating-system browser opener can outlive setup's timeout as a daemo
 thread. It never receives the authorization code/result; the listener is closed on
 every exit. A fresh consent attempt requires a new explicit setup invocation.
 
+## Explicit existing-file selection (source implementation only)
+
+`select-file` adds a separately released same-app Desktop Picker setup flow. It
+is never entered by `diagnose`, ordinary `enroll`/`renew`, a publisher, or a
+scheduler. Source merge does not enable an API, install this command, start
+consent, change credentials or authorize another publication attempt.
+
+After owner approval, an already available Python environment can use the exact
+reviewed source without installation:
+
+```sh
+PYTHONPATH=/absolute/reviewed/checkout/src EXISTING_PYTHON -m notebooklm_mcp.doc_refresh.google_oauth_setup \
+  select-file --config /explicit/existing/publisher.json --file-id EXPECTED_EXISTING_FILE_ID
+```
+
+This mode requires one explicit ID and a non-null pinned permission ID. It
+forbids `--client-config`, uses the client already in the selected existing
+Keychain grant, and refuses a missing grant/client secret or configuration/client/
+account/permission/scope mismatch before browser consent. It never creates a
+credential item or changes provider configuration/destinations. Existing modes
+retain their existing arguments and behavior; `--file-id` is refused outside
+`select-file`.
+
+Before any live setup, the owner must confirm Google Picker API is enabled in
+that same existing Cloud project and separately authorize enablement if needed.
+No new project/client, web frontend/API key, Drive Open-with registration,
+`drive.install`, broader scope or alternate connector is supplied. Google's
+[Desktop/mobile Picker guide](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker)
+requires `prompt=consent`, `trigger_onepick=true` and `drive.file` alone. The
+request filters to the exact `file_ids` value and disables multi/folder selection.
+**That filter is a UI aid, not a documented authorization allowlist.**
+
+The application's receiver independently requires `picked_file_ids` to equal the
+expected singleton exactly. Missing, wrong, repeated or multiple selected IDs,
+duplicate query fields with matching state, unexpected callback scope and mixed
+code/error results terminate Picker setup before exchange; a later callback
+cannot replace the refusal. Wrong-state/protocol frames remain rejected within
+the existing connection/header/deadline bounds. Normal cancellation terminates.
+The receiver retains random state, PKCE S256, exact loopback Host/path, bounded
+connections and cleanup; a first valid result closes the listener. A fresh
+invocation uses fresh state/verifier, so old callbacks cannot yield a new result.
+Callback fields never replace validation of the actual exchanged token scope.
+
+Only a valid selection can reach one code exchange, whose grant must preserve
+exact existing client and account/permission identity and the exact `drive.file`
+scope. Codes, raw URLs/callbacks, tokens and client secrets are never printed.
+Setup displays only nonsecret account/client/file identity and requires the typed
+email plus one space plus the exact file ID before storage. Refusing confirmation
+leaves the local grant untouched; it does not undo Google-side consent.
+
+The mode noninteractively updates only the selected existing item, comparing the
+original bytes and then verifying exact readback. Coordinate an exclusive
+credential writer: the Keychain adapter's comparison is not cross-process atomic
+compare-and-swap. `keychain_conflict` refuses a competing change. Any other update
+failure, interrupted write or failed/mismatched readback reports
+`credential_persistence_unknown`: the item may already have changed. Stop and
+reconcile under owner authority; do not retry, revoke, roll back or re-consent
+automatically. Failed selection/exchange likewise does not prove Google-side
+file consent was rolled back.
+
+No file metadata/ACL/media verification or content write follows this setup.
+Per-file user selection is not account-specific access qualification: separately
+approve fresh native identity, owner-only ACL, parent/MIME/editability, coherent
+strong ETag and exact old-byte checks before admission/publication. A prior HTTP
+404 remains inaccessible-or-nonexistent evidence, not a proven named permission
+error. Retain prior failed-attempt accounting and replay fences. This source
+slice has only fictional offline tests; real Picker/browser/Cloud/credential-store
+acceptance remains untested.
+
 ## Failures and ownership
 
 | Fixed receipt code | Required action |
