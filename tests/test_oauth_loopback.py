@@ -381,7 +381,7 @@ def test_picker_callback_validates_protocol_and_selection_without_sockets(mutati
     elif mutation=='method':method='POST'
     elif mutation=='percent':path+='?bad=%ZZ';pairs=[]
     elif mutation=='scope':pairs.append(('scope','broad'));expected=('selection-refused','')
-    else:pairs.append(('state',state))
+    else:pairs.append(('state',state));expected=('selection-refused','')
     target=path+'?'+urlencode(pairs) if pairs else path
     raw=f'{method} {target} HTTP/1.1\r\nHost: {host}\r\n\r\n'.encode()
     assert loopback._callback_result(raw,'127.0.0.1:123',state,expected_file_id='fictional_file')==expected
@@ -427,3 +427,27 @@ def test_picker_prior_state_replay_never_yields_a_code():
     query=urlencode({'state':old,'code':CODE,'picked_file_ids':'fictional_file'})
     raw=f'GET /oauth2/callback?{query} HTTP/1.1\r\nHost: {host}\r\n\r\n'.encode()
     assert loopback._callback_result(raw,host,current,expected_file_id='fictional_file') is None
+
+
+@pytest.mark.parametrize('states',[['current','current'],['wrong','current']])
+def test_picker_duplicate_current_state_is_terminal_before_later_valid(picker_receiver,states):
+    listener,_,_=picker_receiver
+    def opened(url):
+        fields,redirect=details(url)
+        bad=[('state',fields['state'][0] if value=='current' else 'wrong') for value in states]
+        bad += [('code',CODE),('picked_file_ids','fictional_file')]
+        good=[('state',fields['state'][0]),('code',CODE),('picked_file_ids','fictional_file')]
+        for pairs in [bad,good]:
+            raw=f'GET {redirect.path}?{urlencode(pairs)} HTTP/1.1\r\nHost: {redirect.netloc}\r\n\r\n'.encode()
+            listener.peers.append(listener.peer_type(raw))
+        return True
+    with pytest.raises(loopback.LoopbackError,match='loopback_selection_refused'):
+        loopback.get_file_authorization_code(CLIENT,file_id='fictional_file',opener=opened,timeout=2)
+    assert listener.closed and listener.accepted==1 and listener.accepted_peers[0].closed
+
+
+def test_picker_duplicate_wrong_states_remain_bounded_untrusted_frames():
+    host='127.0.0.1:123';state='s'*43
+    pairs=[('state','wrong'),('state','also-wrong'),('code',CODE),('picked_file_ids','fictional_file')]
+    raw=f'GET /oauth2/callback?{urlencode(pairs)} HTTP/1.1\r\nHost: {host}\r\n\r\n'.encode()
+    assert loopback._callback_result(raw,host,state,expected_file_id='fictional_file') is None

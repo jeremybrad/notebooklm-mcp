@@ -134,3 +134,27 @@ Isolated maintained C010 controls are4e1cb83102ea8af883a2a6c3391df5a227dfbd49;
 protected canonical C010 remains5f2699386e807c7599815accf6c1982188493564.
 PR review/status accounting will record actual committed head/base/results; this
 receipt is not a review result, merge grant or operational setup release.
+
+## One approved review repair
+
+PR39 R1 reviewed head81d796f2b16263f5b9a66f54f21123ff8cef872c, full nine-file
+scope,21:45:18–21:45:37UTC, guarded Codex gpt-6.1-sol, one attempt/1800seconds,
+subscription only. DP-001 (medium) found duplicate current state was returned as
+an untrusted frame before terminal duplicate-parameter handling. A later valid
+callback could therefore replace it, contrary to the documented Picker contract.
+
+Two fictional queued-callback regressions reproduced RED for repeated-current and
+mixed wrong/current state values. The approved repair checks for any current nonce
+among duplicate state fields in Picker mode and refuses terminally. All-wrong
+states remain untrusted; legacy duplicate-state behavior is unchanged. Tests now
+verify first-peer/listener closure and refusal before returning a code, so setup
+cannot exchange that callback. Primary result/finding identity remains in the
+append-only PR ledger; no reset or unrelated source change.
+
+Repair checks:39guarded receiver cases passed0.07s; full guarded synthetic suite
+**858 passed,1 existing filesystem-case skip in47.28s**, including all legacy
+localhost checks. The patch is4source lines plus regression tests/expectation and
+this receipt. Offline packaging is rebuilt for the actual repaired source/receipt;
+byte/entrypoint verification and final review/triage live in task artifacts and
+PR accounting. Only the conditional second review remains authorized; no third
+review, second repair cycle, live setup, API/credential change or C017 retry.

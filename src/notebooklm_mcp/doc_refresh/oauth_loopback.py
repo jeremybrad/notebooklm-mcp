@@ -95,6 +95,10 @@ def _callback_result(raw: bytes | None, host: str, state: str,
                           encoding="utf-8", errors="strict", max_num_fields=16)
         states = [value for key, value in pairs if key == 'state']
         if len(states) != 1:
+            if expected_file_id is not None and any(
+                    hmac.compare_digest(value.encode('utf-8'), state.encode('ascii'))
+                    for value in states):
+                return 'selection-refused', ''
             return None
         returned_state = states[0]
         if not hmac.compare_digest(returned_state.encode("utf-8"), state.encode("ascii")):
