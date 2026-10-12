@@ -1,3 +1,7 @@
+## 2026-10-12
+
+- Add explicit guarded admission of an existing nonempty original Markdown file: verify the immutable old Git bytes and fresh remote identity/ETag before saving a truthful base binding, with no upload or notebook attestation. Preserve empty-only adoption and publication behavior; synthetic tests cover refusals and persistence failures. See `20_receipts/2026-10-12_nonempty_original_admission.md`.
+
 ## 2026-10-03
 
 - Preserve failed offline plan/status receipts, attribute failures only to originals mentioned by the run, and open receipt files nonblocking before regular-file validation.
